@@ -8,6 +8,7 @@ import 'package:gal/gal.dart';
 import 'package:archive/archive_io.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import '../../ads/NativeAdWidget.dart';
 import '../../core/design_tokens.dart';
 import '../../core/theme.dart';
 import '../../models/image_settings.dart';
@@ -38,7 +39,7 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
   Future<void> _pickMultipleImages() async {
     final picker = ImagePicker();
     final pickedFiles = await picker.pickMultiImage();
-    
+
     if (pickedFiles.isNotEmpty) {
       final isPro = ref.read(premiumProvider).isPro;
       setState(() {
@@ -60,11 +61,12 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
     try {
       for (int i = 0; i < _selectedImages.length; i++) {
         final xFile = _selectedImages[i];
-        
+
         try {
           // Create temp file for processing
           final tempDir = Directory.systemTemp;
-          final tempFileName = 'temp_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
+          final tempFileName =
+              'temp_${DateTime.now().millisecondsSinceEpoch}_$i.jpg';
           final tempFile = File('${tempDir.path}/$tempFileName');
           await tempFile.writeAsBytes(await xFile.readAsBytes());
 
@@ -92,8 +94,10 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
       }
 
       if (mounted) {
-        final successfulResults = _processedResults.values.where((f) => f != null).toList();
-        
+        final successfulResults = _processedResults.values
+            .where((f) => f != null)
+            .toList();
+
         if (successfulResults.isNotEmpty) {
           // Save to history
           try {
@@ -106,7 +110,9 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
             // Generate session-specific directory for persistent storage
             final sessionId = const Uuid().v4();
             final sessionRelativeDir = 'history/bulk_$sessionId';
-            final sessionDir = Directory(p.join(appDir.path, sessionRelativeDir));
+            final sessionDir = Directory(
+              p.join(appDir.path, sessionRelativeDir),
+            );
             if (!await sessionDir.exists()) {
               await sessionDir.create(recursive: true);
             }
@@ -116,15 +122,19 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
             for (final file in successfulResults) {
               if (file != null) {
                 final fileName = p.basename(file.path);
-                final persistentFile = await file.copy(p.join(sessionDir.path, fileName));
+                final persistentFile = await file.copy(
+                  p.join(sessionDir.path, fileName),
+                );
                 persistentRelativePaths.add('$sessionRelativeDir/$fileName');
               }
             }
 
             // Generate thumbnail from first image
             final firstFile = successfulResults.first!;
-            final thumbBytes = await ThumbnailGenerator.generateSmallThumbnail(XFile(firstFile.path));
-            
+            final thumbBytes = await ThumbnailGenerator.generateSmallThumbnail(
+              XFile(firstFile.path),
+            );
+
             if (thumbBytes != null) {
               final thumbFileName = 'thumb_bulk_$sessionId.jpg';
               final thumbRelativePath = 'history/$thumbFileName';
@@ -134,7 +144,7 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
               // Calculate total sizes
               int totalOriginalSize = 0;
               int totalProcessedSize = 0;
-              
+
               for (final xFile in _selectedImages) {
                 totalOriginalSize += await xFile.length();
               }
@@ -145,7 +155,8 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
               final historyItem = HistoryItem(
                 id: sessionId,
                 thumbnailPath: thumbRelativePath, // Save relative path
-                originalPath: _selectedImages.first.path, // Use first as reference
+                originalPath:
+                    _selectedImages.first.path, // Use first as reference
                 settings: _settings,
                 timestamp: DateTime.now(),
                 originalSize: totalOriginalSize,
@@ -184,12 +195,14 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
 
   /// Save all processed images to gallery
   Future<void> _saveAllToGallery() async {
-    final successfulResults = _processedResults.values.where((f) => f != null).toList();
-    
+    final successfulResults = _processedResults.values
+        .where((f) => f != null)
+        .toList();
+
     if (successfulResults.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No images to save')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No images to save')));
       return;
     }
 
@@ -213,7 +226,10 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error saving: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -221,19 +237,21 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
 
   /// Export all processed images as ZIP
   Future<void> _exportAsZip() async {
-    final successfulResults = _processedResults.values.where((f) => f != null).toList();
-    
+    final successfulResults = _processedResults.values
+        .where((f) => f != null)
+        .toList();
+
     if (successfulResults.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No images to export')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No images to export')));
       return;
     }
 
     try {
       // Create archive
       final archive = Archive();
-      
+
       for (int i = 0; i < successfulResults.length; i++) {
         final file = successfulResults[i];
         if (file != null) {
@@ -251,14 +269,15 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
 
       // Save ZIP file
       final tempDir = await getTemporaryDirectory();
-      final zipFile = File('${tempDir.path}/imagemaster_bulk_${DateTime.now().millisecondsSinceEpoch}.zip');
+      final zipFile = File(
+        '${tempDir.path}/imagemaster_bulk_${DateTime.now().millisecondsSinceEpoch}.zip',
+      );
       await zipFile.writeAsBytes(zipBytes);
 
       // Share ZIP
-      await Share.shareXFiles(
-        [XFile(zipFile.path)],
-        text: 'Bulk processed images (${successfulResults.length} files)',
-      );
+      await Share.shareXFiles([
+        XFile(zipFile.path),
+      ], text: 'Bulk processed images (${successfulResults.length} files)');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -271,7 +290,10 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating ZIP: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error creating ZIP: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -291,23 +313,40 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
             ),
             const SizedBox(height: 24),
             ListTile(
-              leading: const Icon(Iconsax.gallery, color: DesignTokens.primaryBlue),
+              leading: const Icon(
+                Iconsax.gallery,
+                color: DesignTokens.primaryBlue,
+              ),
               title: const Text('Save All to Gallery'),
-              subtitle: Text('${_processedResults.values.where((f) => f != null).length} images'),
+              subtitle: Text(
+                '${_processedResults.values.where((f) => f != null).length} images',
+              ),
               onTap: () {
-                Navigator.pop(context);
-                _saveAllToGallery();
+                if (!ref.watch(premiumProvider).isPro) {
+                  Navigator.pop(context);
+                  _saveAllToGallery();
+                }
               },
             ),
             ListTile(
-              leading: const Icon(Iconsax.archive, color: DesignTokens.primaryBlue),
+              leading: const Icon(
+                Iconsax.archive,
+                color: DesignTokens.primaryBlue,
+              ),
               title: const Text('Export as ZIP'),
               subtitle: const Text('Create shareable ZIP file'),
               onTap: () {
-                Navigator.pop(context);
-                _exportAsZip();
+                if (!ref.watch(premiumProvider).isPro) {
+                  Navigator.pop(context);
+                  _exportAsZip();
+                }
               },
             ),
+            // Native Ad
+              const Divider(height: 24),
+              const NativeAdWidget(),
+              const SizedBox(height: 8),
+
           ],
         ),
       ),
@@ -341,17 +380,21 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
                 Expanded(
                   child: GridView.builder(
                     padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                        ),
                     itemCount: _selectedImages.length,
                     itemBuilder: (context, index) {
                       final xFile = _selectedImages[index];
-                      final isProcessed = _processedResults.containsKey(xFile.name);
-                      final hasSucceeded = _processedResults[xFile.name] != null;
-                      
+                      final isProcessed = _processedResults.containsKey(
+                        xFile.name,
+                      );
+                      final hasSucceeded =
+                          _processedResults[xFile.name] != null;
+
                       return Stack(
                         children: [
                           ClipRRect(
@@ -373,7 +416,9 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: Icon(
-                                  hasSucceeded ? Iconsax.tick_circle : Iconsax.close_circle,
+                                  hasSucceeded
+                                      ? Iconsax.tick_circle
+                                      : Iconsax.close_circle,
                                   color: Colors.white,
                                   size: 32,
                                 ),
@@ -404,7 +449,10 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Quality', style: TextStyle(fontSize: 12)),
+                                const Text(
+                                  'Quality',
+                                  style: TextStyle(fontSize: 12),
+                                ),
                                 Slider(
                                   value: _settings.quality,
                                   min: 10,
@@ -415,7 +463,9 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
                                       ? null
                                       : (value) {
                                           setState(() {
-                                            _settings = _settings.copyWith(quality: value);
+                                            _settings = _settings.copyWith(
+                                              quality: value,
+                                            );
                                           });
                                         },
                                 ),
@@ -427,7 +477,10 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('Scale', style: TextStyle(fontSize: 12)),
+                                const Text(
+                                  'Scale',
+                                  style: TextStyle(fontSize: 12),
+                                ),
                                 Slider(
                                   value: _settings.scalePercent,
                                   min: 25,
@@ -438,7 +491,9 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
                                       ? null
                                       : (value) {
                                           setState(() {
-                                            _settings = _settings.copyWith(scalePercent: value);
+                                            _settings = _settings.copyWith(
+                                              scalePercent: value,
+                                            );
                                           });
                                         },
                                 ),
@@ -455,16 +510,18 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen> {
                           label: _processedResults.isEmpty
                               ? 'Process All (${_selectedImages.length})'
                               : 'Results Ready',
-                          icon: _processedResults.isEmpty ? Iconsax.cpu : Iconsax.tick_circle,
+                          icon: _processedResults.isEmpty
+                              ? Iconsax.cpu
+                              : Iconsax.tick_circle,
                           onPressed: _isProcessing
                               ? () {} // Empty callback when processing
                               : () {
-                                   if (_processedResults.isEmpty) {
-                                     _processAllImages();
-                                   } else {
-                                     _showExportOptions();
-                                   }
-                                 },
+                                  if (_processedResults.isEmpty) {
+                                    _processAllImages();
+                                  } else {
+                                    _showExportOptions();
+                                  }
+                                },
                           isLoading: _isProcessing,
                         ),
                       ),

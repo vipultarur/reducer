@@ -10,6 +10,7 @@ import 'package:gal/gal.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
+import '../../ads/NativeAdWidget.dart';
 import '../../core/design_tokens.dart';
 import '../../core/theme.dart';
 import '../../models/image_settings.dart';
@@ -18,7 +19,7 @@ import '../../providers/history_provider.dart';
 import '../../services/image_processor.dart';
 import '../../widgets/custom_button.dart';
 import '../../widgets/banner_ad_widget.dart';
-import '../../models/ad_state.dart';
+import 'package:reducer/core/ads/ad_manager.dart';
 import '../../utils/image_validator.dart';
 import '../../utils/thumbnail_generator.dart';
 import '../../utils/debouncer.dart';
@@ -341,6 +342,7 @@ class _SingleImageScreenState extends ConsumerState<SingleImageScreen> with Sing
                 _buildUploadTab(),
                 _buildSettingsTab(),
                 _buildExportTab(),
+
               ],
             ),
           ),
@@ -427,6 +429,7 @@ class _SingleImageScreenState extends ConsumerState<SingleImageScreen> with Sing
               ),
             ],
           ),
+          NativeAdWidget(),
         ],
       ),
     );
@@ -523,9 +526,7 @@ class _SingleImageScreenState extends ConsumerState<SingleImageScreen> with Sing
               label: _isProcessingFinal ? 'Processing...' : 'Process Image',
               icon: Iconsax.cpu,
               onPressed: () async {
-                final adState = ref.read(adStateProvider);
-                await adState.onFeatureClick(
-                  context: context,
+                await AdManager().showInterstitialAd(
                   onComplete: () => _processFinalImage(),
                 );
               },

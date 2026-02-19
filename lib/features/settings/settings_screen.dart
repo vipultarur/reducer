@@ -8,6 +8,7 @@ import '../../core/design_tokens.dart';
 import '../../core/theme.dart';
 import '../../widgets/banner_ad_widget.dart';
 import '../../providers/premium_provider.dart';
+import 'package:reducer/core/ads/ad_manager.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});

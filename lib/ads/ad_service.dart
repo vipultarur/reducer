@@ -97,4 +97,36 @@ class AdService {
 
     await _interstitialAd!.show();
   }
+
+  Future<void> showAppOpenAd({required VoidCallback onAdClosed}) async {
+    if (isPremium) {
+      onAdClosed();
+      return;
+    }
+
+    final adUnitId = RemoteConfigService().adConfig.appOpenAdId;
+
+    AppOpenAd.load(
+      adUnitId: adUnitId,
+      request: const AdRequest(),
+      adLoadCallback: AppOpenAdLoadCallback(
+        onAdLoaded: (ad) {
+          ad.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              ad.dispose();
+              onAdClosed();
+            },
+            onAdFailedToShowFullScreenContent: (ad, error) {
+              ad.dispose();
+              onAdClosed();
+            },
+          );
+          ad.show();
+        },
+        onAdFailedToLoad: (error) {
+          onAdClosed();
+        },
+      ),
+    );
+  }
 }

@@ -4,9 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import '../../core/design_tokens.dart';
 import '../../core/theme.dart';
-import '../../models/ad_state.dart';
+import 'package:reducer/core/ads/ad_manager.dart';
 import '../../widgets/banner_ad_widget.dart';
 import '../../providers/premium_provider.dart';
+import '../../models/ad_state.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -23,27 +24,24 @@ class HomeScreen extends ConsumerWidget {
         ),
         title: const Text('ImageMaster Pro'),
         actions: [
-          if (!ref.watch(premiumProvider).isPro)
             IconButton(
               icon: const Icon(Iconsax.crown, color: Colors.orange),
               onPressed: () => context.push('/premium'),
             ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // Banner Ad
-            const BannerAdWidget(),
-            const SizedBox(height: 16),
-
-            // Main Selection Card
-            _buildMainActionCard(context, ref),
-
-            const SizedBox(height: 24),
-
-            // Tools Grid
+      body: Column(
+        children: [
+          const BannerAdWidget(),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Main Selection Card
+                  _buildMainActionCard(context, ref),
+                  const SizedBox(height: 24),
+                  // Tools Grid
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -87,8 +85,11 @@ class HomeScreen extends ConsumerWidget {
                   ),
               ],
             ),
-          ],
-        ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -140,9 +141,7 @@ class HomeScreen extends ConsumerWidget {
   }) {
     return GestureDetector(
       onTap: () async {
-        final adState = ref.read(adStateProvider);
-        await adState.onFeatureClick(
-          context: context,
+        await AdManager().showInterstitialAd(
           onComplete: () => context.push(route),
         );
       },
@@ -232,9 +231,7 @@ class HomeScreen extends ConsumerWidget {
       title: Text(label),
       onTap: () async {
         Navigator.pop(context);
-        final adState = ref.read(adStateProvider);
-        await adState.onFeatureClick(
-          context: context,
+        await AdManager().showInterstitialAd(
           onComplete: () => context.push(route),
         );
       },

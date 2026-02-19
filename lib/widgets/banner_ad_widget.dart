@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../ads/ad_service.dart';
+import '../core/ads/ad_ids.dart';
+import 'dart:io';
+
 import '../providers/premium_provider.dart';
 
 class BannerAdWidget extends ConsumerStatefulWidget {
@@ -22,22 +24,30 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
   }
 
   void _loadBannerAd() {
+    if (_isAdLoaded || _bannerAd != null) return;
+
+    final adUnitId = Platform.isAndroid ? AdIds.androidBanner : AdIds.iosBanner;
     _bannerAd = BannerAd(
-      adUnitId: AdService.bannerAdUnitId,
+      adUnitId: adUnitId,
       size: AdSize.banner,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
-          setState(() {
-            _isAdLoaded = true;
-          });
+          if (mounted) {
+            setState(() {
+              _isAdLoaded = true;
+            });
+          }
         },
         onAdFailedToLoad: (ad, error) {
-          print('Banner ad failed to load: $error');
+          debugPrint('❌ Banner ad failed to load: ${error.message}');
           ad.dispose();
-          setState(() {
-            _isAdLoaded = false;
-          });
+          _bannerAd = null;
+          if (mounted) {
+            setState(() {
+              _isAdLoaded = false;
+            });
+          }
         },
       ),
     );

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/design_tokens.dart';
-import '../../ads/ad_service.dart';
+import 'package:reducer/core/ads/ad_manager.dart';
+import 'package:reducer/services/purchase_service.dart';
+import 'package:reducer/ads/remote_config_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -15,18 +17,34 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _navigateToHome();
+    _initApp();
   }
 
-  Future<void> _navigateToHome() async {
-    // Wait for splash animation
-    await Future.delayed(const Duration(seconds: 3));
-    
+  Future<void> _initApp() async {
+    // 1. Start services initialization immediately and in parallel
+    // This allows the heavy lifting to happen while the animation plays
+    final servicesFuture = Future.wait([
+      // Add a timeout to ensure app doesn't hang if a service fails internally
+      RemoteConfigService().initialize().timeout(const Duration(seconds: 5), onTimeout: () {}),
+      AdManager().initialize().timeout(const Duration(seconds: 5), onTimeout: () {}),
+      PurchaseService.configure().timeout(const Duration(seconds: 5), onTimeout: () {}),
+    ]);
+
+    // 2. Enforce minimum splash duration for branding (e.g., 2 seconds)
+    final minimumWait = Future.delayed(const Duration(seconds: 2));
+
+    try {
+      // Wait for both to complete
+      await Future.wait([servicesFuture, minimumWait]);
+    } catch (e) {
+      debugPrint("⚠️ Initialization error: $e");
+    }
+
     if (!mounted) return;
-    
-    // Show splash interstitial ad before navigating
-    final adService = AdService();
-    await adService.showSplashInterstitialAd(
+
+    // 3. Attempt to show the App Open Ad
+    // This method handles its own errors and ensures the callback is called
+    await AdManager().showSplashAd(
       onAdClosed: () {
         if (mounted) {
           context.go('/home');

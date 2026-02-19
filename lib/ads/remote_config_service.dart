@@ -25,22 +25,22 @@ class RemoteConfigService {
 
     await _remoteConfig.setDefaults({
       'ad_config': jsonEncode({
-        "appid": "ca-app-pub-9155918242947466~4984600180",
-        "splashInterstitialAd": "ca-app-pub-9155918242947466/8096491449",
-        "preInterstitialAd": "ca-app-pub-9155918242947466/9249791016",
-        "introNativeAd": "ca-app-pub-9155918242947466/2346295726",
-        "bannerAdUnitId": "ca-app-pub-9155918242947466/4133195707",
-        "languageNativeAd": "ca-app-pub-9155918242947466/2346295726",
-        "appOpenAdId": "ca-app-pub-9155918242947466/8096491449",
-        "adsSkipClick": 2,
-        "facebookId": "",
-        "facebookToken": "",
-        "freeUse": 0,
-        "perDayCall": 2,
-        "defaultYearlySelectPackage": true
+         "appid": "ca-app-pub-9155918242947466~4984600180",
+  "splashInterstitialAd": "ca-app-pub-9155918242947466/8096491449",
+  "preInterstitialAd": "ca-app-pub-9155918242947466/9249791016",
+  "introNativeAd": "ca-app-pub-9155918242947466/2346295726",
+  "bannerAdUnitId": "ca-app-pub-9155918242947466/4133195707",
+  "languageNativeAd": "ca-app-pub-9155918242947466/2346295726",
+  "appOpenAdId": "ca-app-pub-9155918242947466/8096491449",
+  "adsSkipClick": 3,
+  "facebookId": "",
+  "facebookToken": "",
+  "freeUse": 0,
+  "perDayCall": 3,
+  "defaultYearlySelectPackage": true
       }),
       freeUse: 0,
-      perDayCall: 2,
+      perDayCall: 3,
       defaultYearlySelectPackage: true,
     });
 

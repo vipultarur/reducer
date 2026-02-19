@@ -7,8 +7,10 @@ import 'package:gal/gal.dart';
 import 'dart:io';
 import '../../core/design_tokens.dart';
 import '../../core/theme.dart';
-import '../../widgets/custom_button.dart';
 import '../../widgets/banner_ad_widget.dart';
+import '../../widgets/custom_button.dart';
+import 'package:reducer/core/ads/ad_manager.dart';
+import '../../ads/NativeAdWidget.dart';
 
 class ExifEraserScreen extends StatefulWidget {
   const ExifEraserScreen({super.key});
@@ -120,16 +122,23 @@ class _ExifEraserScreenState extends State<ExifEraserScreen> {
                     _buildUploadPlaceholder()
                   else
                     _buildImagePreview(),
-                  
                   const SizedBox(height: 32),
                   
                   if (_selectedImages != null)
                     CustomButton(
                       label: _isProcessing ? 'Cleaning...' : 'Clean & Save',
                       icon: Iconsax.shield_tick,
-                      onPressed: () => _cleanMetadata(),
+                      onPressed: () async {
+                        await AdManager().showInterstitialAd(
+                          onComplete: () => _cleanMetadata(),
+                        );
+                      },
                       isLoading: _isProcessing,
                     ),
+                  if (_selectedImages != null) ...[
+                    NativeAdWidget(),
+                    const SizedBox(height: 16),
+                  ],
                 ],
               ),
             ),
@@ -150,12 +159,12 @@ class _ExifEraserScreenState extends State<ExifEraserScreen> {
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: DesignTokens.primaryBlue.withOpacity(0.2), style: BorderStyle.solid),
         ),
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Iconsax.add_square, size: 48, color: DesignTokens.primaryBlue),
-            SizedBox(height: 12),
-            Text('Tap to select image', style: TextStyle(color: DesignTokens.primaryBlue, fontWeight: FontWeight.w500)),
+            const Icon(Iconsax.add_square, size: 48, color: DesignTokens.primaryBlue),
+            const SizedBox(height: 12),
+            const Text('Tap to select image', style: TextStyle(color: DesignTokens.primaryBlue, fontWeight: FontWeight.w500)),
           ],
         ),
       ),

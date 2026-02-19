@@ -2,10 +2,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
+import '../ads/ad_service.dart';
 import '../services/purchase_service.dart';
 import '../ads/remote_config_service.dart';
 import '../services/connectivity_service.dart';
-import '../ads/ad_service.dart';
+import 'package:reducer/core/ads/ad_manager.dart';
 
 class PremiumState {
   final bool isPro;
@@ -47,53 +48,81 @@ class PremiumState {
   }
 }
 
-final premiumProvider = StateNotifierProvider<PremiumNotifier, PremiumState>((ref) {
+final premiumProvider =
+StateNotifierProvider<PremiumNotifier, PremiumState>((ref) {
   return PremiumNotifier();
 });
 
 class PremiumNotifier extends StateNotifier<PremiumState> {
   PremiumNotifier()
       : super(PremiumState(
-          isPro: false,
-          isLoading: true,
-          availablePackages: [],
-          errorMessage: null,
-        )) {
+    isPro: false,
+    isLoading: true,
+    availablePackages: [],
+    errorMessage: null,
+  )) {
     _init();
   }
 
   final _connectivity = ConnectivityService();
   final _remoteConfig = RemoteConfigService();
 
-  void _init() {
-    if (!PurchaseService.isMockMode) {
-      // Listen for changes
+  /// Ensures RevenueCat is configured before any SDK call.
+  /// Calls PurchaseService.configure() if not yet done.
+  Future<void> _ensureConfigured() async {
+    if (PurchaseService.isConfigured) return;
+    debugPrint('⚙️ PremiumNotifier: RevenueCat not yet configured — configuring now...');
+    await PurchaseService.configure();
+  }
+
+  Future<void> _init() async {
+    if (PurchaseService.isMockMode) {
+      fetchOffersAndCheckStatus();
+      return;
+    }
+
+    try {
+      // Always ensure SDK is ready before registering listeners or fetching
+      await _ensureConfigured();
+
+      // Listen for subscription status changes pushed by RevenueCat
       Purchases.addCustomerInfoUpdateListener((customerInfo) {
         _updateStatus(customerInfo);
       });
 
-      // Listen for connectivity changes and retry if needed
+      // Retry when connectivity is restored
       _connectivity.isConnected.addListener(() {
         if (_connectivity.isConnected.value &&
             state.availablePackages.isEmpty &&
             state.hasAttemptedFetch &&
             state.retryCount < 3) {
-          debugPrint('🔄 Connectivity restored - retrying purchase fetch');
+          debugPrint('🔄 Connectivity restored — retrying purchase fetch');
           fetchOffersAndCheckStatus();
         }
       });
+
+      fetchOffersAndCheckStatus();
+    } catch (e) {
+      debugPrint('❌ PremiumNotifier._init failed: $e');
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Initialization failed: ${e.toString()}',
+        );
+      }
     }
-    fetchOffersAndCheckStatus();
   }
 
   Future<void> fetchOffersAndCheckStatus() async {
-    // Skip real logic in mock mode
+    // ── Mock mode ──────────────────────────────────────────────────────────
     if (PurchaseService.isMockMode) {
-      debugPrint('ℹ️ PurchaseNotifier: Running in Mock Mode');
+      debugPrint('ℹ️ PremiumNotifier: Running in Mock Mode');
       state = state.copyWith(isLoading: true, errorMessage: null);
       await Future.delayed(const Duration(milliseconds: 800));
-      state = state.copyWith(isLoading: false, isPro: false);
-      AdService.isPremium = false;
+      if (mounted) {
+        state = state.copyWith(isLoading: false, isPro: false);
+        AdService.isPremium = false;
+      }
       return;
     }
 
@@ -105,31 +134,41 @@ class PremiumNotifier extends StateNotifier<PremiumState> {
         retryCount: state.retryCount + 1,
       );
 
-      // Check connectivity first
+      // ── Guard: ensure SDK is ready ───────────────────────────────────────
+      await _ensureConfigured();
+
+      // ── Guard: check connectivity ────────────────────────────────────────
       if (!_connectivity.currentStatus) {
-        state = state.copyWith(
-          errorMessage: "No internet connection. Please check your network.",
-          isLoading: false,
-        );
+        if (mounted) {
+          state = state.copyWith(
+            errorMessage: 'No internet connection. Please check your network.',
+            isLoading: false,
+          );
+        }
         debugPrint('❌ No internet connection');
         return;
       }
 
       debugPrint('🔄 Fetching offerings (attempt ${state.retryCount})...');
 
+      // ── Fetch offerings ──────────────────────────────────────────────────
       final offerings = await Purchases.getOfferings();
 
-      if (offerings.current == null || offerings.current!.availablePackages.isEmpty) {
-        state = state.copyWith(
-          errorMessage: "No subscription plans available at this time.",
-          isLoading: false,
-        );
+      if (offerings.current == null ||
+          offerings.current!.availablePackages.isEmpty) {
+        if (mounted) {
+          state = state.copyWith(
+            errorMessage: 'No subscription plans available at this time.',
+            isLoading: false,
+          );
+        }
         debugPrint('⚠️ No offerings available');
         return;
       }
 
+      // ── Filter & sort packages ───────────────────────────────────────────
       final packages = offerings.current!.availablePackages
-          .where((package) => _isSubscriptionPackage(package))
+          .where(_isSubscriptionPackage)
           .toList();
 
       // Sort: Yearly > 6-month > 3-month > Monthly > Weekly
@@ -142,80 +181,100 @@ class PremiumNotifier extends StateNotifier<PremiumState> {
           if (p.packageType == PackageType.weekly) return 1;
           return 0;
         }
-        return score(b).compareTo(score(a)); // Highest first
+        return score(b).compareTo(score(a));
       });
 
-      debugPrint('✅ PACKAGES LOADED (${packages.length})');
+      debugPrint('✅ Packages loaded (${packages.length})');
 
-      // Select default package based on remote config
+      // ── Select default package ───────────────────────────────────────────
       Package? selectedPackage;
       if (packages.isNotEmpty) {
-        final preferYearly = _remoteConfig.getBool(RemoteConfigService.defaultYearlySelectPackage);
+        final preferYearly = _remoteConfig
+            .getBool(RemoteConfigService.defaultYearlySelectPackage);
         if (preferYearly) {
           selectedPackage = packages.first;
           debugPrint('📌 Selected yearly package by default');
         } else {
           selectedPackage = packages.firstWhere(
-            (p) => !_isYearly(p),
+                (p) => !_isYearly(p),
             orElse: () => packages.first,
           );
           debugPrint('📌 Selected non-yearly package by default');
         }
       }
 
-      // Check subscription status
+      // ── Check subscription status ────────────────────────────────────────
       final customerInfo = await Purchases.getCustomerInfo();
       final isPro = customerInfo.entitlements.active.isNotEmpty;
       debugPrint('👤 User Pro Status: $isPro');
 
-      state = state.copyWith(
-        availablePackages: packages,
-        selectedPackage: selectedPackage,
-        isPro: isPro,
-        isLoading: false,
-        retryCount: 0, // Reset retry count on success
-      );
+      if (mounted) {
+        state = state.copyWith(
+          availablePackages: packages,
+          selectedPackage: selectedPackage,
+          isPro: isPro,
+          isLoading: false,
+          retryCount: 0, // Reset on success
+        );
+        AdService.isPremium = isPro;
+        AdManager.isPremium = isPro;
+      }
 
-      debugPrint('✅ Purchase notifier initialized successfully');
-
+      debugPrint('✅ PremiumNotifier initialized successfully');
     } on PlatformException catch (e) {
-      final errorCode = PurchasesErrorHelper.getErrorCode(e);
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: "Failed to load plans: ${_getErrorMessage(errorCode)}",
-      );
-      debugPrint('❌ Purchase Error (PlatformException): $errorCode - ${e.message}');
+      PurchasesErrorCode errorCode;
+      try {
+        errorCode = PurchasesErrorHelper.getErrorCode(e);
+      } catch (_) {
+        errorCode = PurchasesErrorCode.unknownError;
+      }
 
-      // Retry logic for network/config errors
+      debugPrint(
+          '❌ Purchase Error (PlatformException): $errorCode - ${e.message}');
+
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Failed to load plans: ${_getErrorMessage(errorCode)}',
+        );
+      }
+
+      // Retry for recoverable errors
       if (_shouldRetry(errorCode) && state.retryCount < 3) {
         final delaySeconds = 2 * state.retryCount;
         debugPrint('⏳ Retrying in $delaySeconds seconds...');
         await Future.delayed(Duration(seconds: delaySeconds));
-        fetchOffersAndCheckStatus();
+        if (mounted) fetchOffersAndCheckStatus();
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: "Failed to load plans: ${e.toString()}",
-      );
       debugPrint('❌ Purchase Error (General): $e');
 
-      // Retry for general errors
+      if (mounted) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Failed to load plans: ${e.toString()}',
+        );
+      }
+
       if (state.retryCount < 3) {
         final delaySeconds = 2 * state.retryCount;
         debugPrint('⏳ Retrying in $delaySeconds seconds...');
         await Future.delayed(Duration(seconds: delaySeconds));
-        fetchOffersAndCheckStatus();
+        if (mounted) fetchOffersAndCheckStatus();
       }
     } finally {
-      if (mounted) state = state.copyWith(isLoading: false);
+      if (mounted && state.isLoading) {
+        state = state.copyWith(isLoading: false);
+      }
     }
   }
 
   void _updateStatus(CustomerInfo info) {
-    state = state.copyWith(isPro: info.entitlements.active.isNotEmpty);
-    AdService.isPremium = state.isPro;
-    debugPrint('👤 User subscription updated: Pro = ${state.isPro}');
+    final isPro = info.entitlements.active.isNotEmpty;
+    if (mounted) state = state.copyWith(isPro: isPro);
+    AdManager.isPremium = isPro;
+    AdService.isPremium = isPro;
+    debugPrint('👤 Subscription updated: isPro=$isPro');
   }
 
   void selectPackage(Package package) {
@@ -226,22 +285,25 @@ class PremiumNotifier extends StateNotifier<PremiumState> {
   Future<bool> purchase(Package? package) async {
     final toPurchase = package ?? state.selectedPackage;
 
+    // ── Mock mode ──────────────────────────────────────────────────────────
     if (PurchaseService.isMockMode) {
       debugPrint('🛒 Mock Mode: Simulating successful purchase');
-      state = state.copyWith(isPro: true);
+      if (mounted) state = state.copyWith(isPro: true);
+      AdManager.isPremium = true;
       AdService.isPremium = true;
       return true;
     }
 
     if (toPurchase == null) {
-      debugPrint('❌ No package selected');
+      debugPrint('❌ No package selected for purchase');
       return false;
     }
 
     try {
-      state = state.copyWith(isLoading: true);
-      debugPrint('🛒 Starting purchase: ${toPurchase.identifier}');
+      if (mounted) state = state.copyWith(isLoading: true);
+      await _ensureConfigured();
 
+      debugPrint('🛒 Starting purchase: ${toPurchase.identifier}');
       final result = await Purchases.purchasePackage(toPurchase);
 
       if (result.customerInfo.entitlements.active.isNotEmpty) {
@@ -255,40 +317,50 @@ class PremiumNotifier extends StateNotifier<PremiumState> {
     } on PlatformException catch (e) {
       final code = PurchasesErrorHelper.getErrorCode(e);
       debugPrint('❌ Purchase error: $code - ${e.message}');
-      state = state.copyWith(errorMessage: _getErrorMessage(code));
+      if (mounted) state = state.copyWith(errorMessage: _getErrorMessage(code));
       return false;
     } catch (e) {
       debugPrint('❌ Purchase error (general): $e');
       return false;
     } finally {
-      state = state.copyWith(isLoading: false);
+      if (mounted) state = state.copyWith(isLoading: false);
     }
   }
 
   Future<void> restore() async {
+    // ── Mock mode ──────────────────────────────────────────────────────────
     if (PurchaseService.isMockMode) {
-      state = state.copyWith(isPro: true);
+      if (mounted) state = state.copyWith(isPro: true);
+      AdManager.isPremium = true;
+      AdService.isPremium = true;
       return;
     }
 
     try {
-      state = state.copyWith(isLoading: true);
+      if (mounted) state = state.copyWith(isLoading: true);
+      await _ensureConfigured();
+
       debugPrint('🔄 Restoring purchases...');
       final info = await Purchases.restorePurchases();
       _updateStatus(info);
     } on PlatformException catch (e) {
       final code = PurchasesErrorHelper.getErrorCode(e);
       debugPrint('❌ Restore error: $code - ${e.message}');
-      state = state.copyWith(errorMessage: "Restore failed: ${_getErrorMessage(code)}");
+      if (mounted) {
+        state = state.copyWith(
+            errorMessage: 'Restore failed: ${_getErrorMessage(code)}');
+      }
     } catch (e) {
       debugPrint('❌ Restore error (general): $e');
-      state = state.copyWith(errorMessage: "Restore failed: $e");
+      if (mounted) {
+        state = state.copyWith(errorMessage: 'Restore failed: $e');
+      }
     } finally {
-      state = state.copyWith(isLoading: false);
+      if (mounted) state = state.copyWith(isLoading: false);
     }
   }
 
-  // --- Helpers ported from user logic ---
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
   bool _shouldRetry(PurchasesErrorCode errorCode) {
     return errorCode == PurchasesErrorCode.networkError ||
@@ -299,13 +371,13 @@ class PremiumNotifier extends StateNotifier<PremiumState> {
   String _getErrorMessage(PurchasesErrorCode errorCode) {
     switch (errorCode) {
       case PurchasesErrorCode.networkError:
-        return "Network error. Please check your connection.";
+        return 'Network error. Please check your connection.';
       case PurchasesErrorCode.configurationError:
-        return "Configuration error. Please try again later.";
+        return 'Configuration error. Please try again later.';
       case PurchasesErrorCode.unknownError:
-        return "Unknown error. Please try again.";
+        return 'Unknown error. Please try again.';
       case PurchasesErrorCode.purchaseCancelledError:
-        return "Purchase cancelled.";
+        return 'Purchase cancelled.';
       default:
         return errorCode.toString();
     }
@@ -316,13 +388,11 @@ class PremiumNotifier extends StateNotifier<PremiumState> {
     final title = package.storeProduct.title.toLowerCase();
     final desc = package.storeProduct.description.toLowerCase();
 
-    // Exclude non-subscriptions
-    final exclude = ['coin', 'credit', 'token', 'point', 'pack', 'bundle', 'tip'];
+    const exclude = ['coin', 'credit', 'token', 'point', 'pack', 'bundle', 'tip'];
     if (exclude.any((k) => id.contains(k) || title.contains(k) || desc.contains(k))) {
       return false;
     }
 
-    // Include subscriptions
     return package.packageType == PackageType.monthly ||
         package.packageType == PackageType.annual ||
         package.packageType == PackageType.sixMonth ||

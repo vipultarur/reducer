@@ -13,7 +13,7 @@ import 'features/settings/settings_screen.dart';
 import 'features/settings/privacy_policy_screen.dart';
 import 'models/history_item.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'ads/ad_service.dart';
+import 'package:reducer/core/ads/ad_manager.dart';
 import 'services/purchase_service.dart';
 import 'ads/remote_config_service.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -21,11 +21,9 @@ import 'package:firebase_core/firebase_core.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  
-  // Initialize services
-  await RemoteConfigService().initialize();
-  await AdService().init();
-  await PurchaseService.initialize();
+
+
+  // Services are initialized in SplashScreen to prevent startup lag
 
   runApp(const ProviderScope(child: MyApp()));
 }
@@ -41,6 +39,7 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
+      restorationScopeId: 'app',
       routerConfig: _router,
     );
   }
