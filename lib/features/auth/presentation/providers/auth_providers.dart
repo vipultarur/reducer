@@ -1,16 +1,22 @@
 import 'dart:io';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:reducer/features/auth/data/services/app_auth_service.dart';
-import 'package:reducer/features/auth/data/services/user_service.dart';
 import 'package:reducer/features/auth/data/services/cloudinary_service.dart';
+import 'package:reducer/features/auth/data/services/user_service.dart';
 import 'package:reducer/features/auth/domain/models/user_model.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 
 // Service Providers
 final authServiceProvider = Provider((ref) => AIImageProAuthService());
 final userServiceProvider = Provider((ref) => UserService());
-final cloudinaryServiceProvider = Provider((ref) => CloudinaryService());
+
+/// Required by the new auth architecture contract.
+final cloudinaryProvider = Provider((ref) => CloudinaryService());
+
+/// Backward-compatible alias for existing code.
+final cloudinaryServiceProvider = cloudinaryProvider;
 
 // Auth State Provider
 final authProvider = StreamProvider<User?>((ref) {
@@ -23,12 +29,14 @@ final authStateProvider = authProvider;
 // User Data Provider (Firestore)
 final userProvider = StreamProvider<UserModel?>((ref) {
   final authState = ref.watch(authProvider).value;
-  if (authState == null) return Stream.value(null);
+  if (authState == null || authState.isAnonymous) return Stream.value(null);
   return ref.watch(userServiceProvider).streamUser(authState.uid);
 });
 
 // Auth Controller Provider
-final authControllerProvider = StateNotifierProvider<AuthController, bool>((ref) {
+final authControllerProvider = StateNotifierProvider<AuthController, bool>((
+  ref,
+) {
   return AuthController(ref);
 });
 
@@ -37,19 +45,22 @@ class AuthController extends StateNotifier<bool> {
 
   AuthController(this._ref) : super(false);
 
+  /// Register with email/password and create/update user profile in Firestore.
   Future<void> register(String name, String email, String password) async {
     state = true;
     try {
-      final userCredential = await _ref.read(authServiceProvider).registerWithEmail(email, password);
-      final user = userCredential.user;
-      if (user != null) {
-        final userModel = UserModel(
-          uid: user.uid,
-          email: email,
-          name: name,
-        );
-        await _ref.read(userServiceProvider).saveUser(userModel);
+      final credential = await _ref
+          .read(authServiceProvider)
+          .registerWithEmail(email.trim(), password.trim());
+      final user = credential.user;
+      if (user == null) {
+        throw 'Registration failed. Please try again.';
       }
+
+      await _ensureUserDocument(user, name: name.trim(), email: email.trim());
+      await _ref
+          .read(premiumControllerProvider.notifier)
+          .fetchOffersAndCheckStatus();
     } on FirebaseAuthException catch (e) {
       throw _handleAuthError(e);
     } catch (e) {
@@ -59,10 +70,22 @@ class AuthController extends StateNotifier<bool> {
     }
   }
 
+  /// Login with email/password and ensure Firestore document exists.
   Future<void> login(String email, String password) async {
     state = true;
     try {
-      await _ref.read(authServiceProvider).loginWithEmail(email, password);
+      final credential = await _ref
+          .read(authServiceProvider)
+          .loginWithEmail(email.trim(), password.trim());
+      final user = credential.user;
+      if (user == null) {
+        throw 'Login failed. Please try again.';
+      }
+
+      await _ensureUserDocument(user, email: email.trim());
+      await _ref
+          .read(premiumControllerProvider.notifier)
+          .fetchOffersAndCheckStatus();
     } on FirebaseAuthException catch (e) {
       throw _handleAuthError(e);
     } catch (e) {
@@ -72,23 +95,27 @@ class AuthController extends StateNotifier<bool> {
     }
   }
 
+  /// Sign in with Google and create/update Firestore user document.
   Future<void> signInWithGoogle() async {
     state = true;
     try {
-      final userCredential = await _ref.read(authServiceProvider).signInWithGoogle();
-      final user = userCredential?.user;
-      if (user != null) {
-        final existingUser = await _ref.read(userServiceProvider).getUser(user.uid);
-        if (existingUser == null) {
-          final userModel = UserModel(
-            uid: user.uid,
-            email: user.email ?? '',
-            name: user.displayName ?? 'New User',
-            profileImageUrl: user.photoURL,
-          );
-          await _ref.read(userServiceProvider).saveUser(userModel);
-        }
+      final credential = await _ref
+          .read(authServiceProvider)
+          .signInWithGoogle();
+      final user = credential?.user;
+      if (user == null) {
+        throw 'Google Sign-In failed. Please try again.';
       }
+
+      await _ensureUserDocument(
+        user,
+        name: user.displayName,
+        email: user.email,
+        profileImageUrl: user.photoURL,
+      );
+      await _ref
+          .read(premiumControllerProvider.notifier)
+          .fetchOffersAndCheckStatus();
     } on FirebaseAuthException catch (e) {
       throw _handleAuthError(e);
     } catch (e) {
@@ -96,6 +123,34 @@ class AuthController extends StateNotifier<bool> {
     } finally {
       state = false;
     }
+  }
+
+  Future<void> _ensureUserDocument(
+    User user, {
+    String? name,
+    String? email,
+    String? profileImageUrl,
+  }) async {
+    final resolvedEmail = (email ?? user.email ?? '').trim();
+    final fallbackName = _fallbackNameFromEmail(resolvedEmail);
+
+    await _ref
+        .read(userServiceProvider)
+        .createOrUpdateUserFromAuth(
+          user: user,
+          email: resolvedEmail,
+          name: (name == null || name.trim().isEmpty)
+              ? fallbackName
+              : name.trim(),
+          profileImageUrl: profileImageUrl,
+        );
+  }
+
+  String _fallbackNameFromEmail(String email) {
+    if (!email.contains('@')) return 'New User';
+    final raw = email.split('@').first.trim();
+    if (raw.isEmpty) return 'New User';
+    return raw;
   }
 
   String _handleAuthError(FirebaseAuthException e) {
@@ -107,7 +162,8 @@ class AuthController extends StateNotifier<bool> {
       case 'user-not-found':
         return 'No user found for that email.';
       case 'wrong-password':
-        return 'Wrong password provided.';
+      case 'invalid-credential':
+        return 'Wrong email or password.';
       case 'invalid-email':
         return 'The email address is not valid.';
       case 'network-request-failed':
@@ -127,27 +183,32 @@ class AuthController extends StateNotifier<bool> {
     }
   }
 
+  /// Picked image upload flow:
+  /// 1) Upload image to Cloudinary (unsigned upload)
+  /// 2) Persist secure URL in Firestore
   Future<void> updateProfileImage(File imageFile) async {
     final currentUser = _ref.read(authServiceProvider).currentUser;
     if (currentUser == null) return;
 
     state = true;
     try {
-      final imageUrl = await _ref.read(cloudinaryServiceProvider).uploadImage(imageFile, userId: currentUser.uid);
-      if (imageUrl != null) {
-        await _ref.read(userServiceProvider).updateFields(currentUser.uid, {
-          'profileImageUrl': imageUrl,
-        });
-      } else {
+      final imageUrl = await _ref
+          .read(cloudinaryProvider)
+          .uploadImage(imageFile, userId: currentUser.uid);
+      if (imageUrl == null || imageUrl.isEmpty) {
         throw 'Failed to upload image to Cloudinary.';
       }
+
+      await _ref.read(userServiceProvider).updateFields(currentUser.uid, {
+        'profileImageUrl': imageUrl,
+      });
     } catch (e) {
       rethrow;
     } finally {
       state = false;
     }
   }
-  
+
   Future<void> updateName(String name) async {
     final currentUser = _ref.read(authServiceProvider).currentUser;
     if (currentUser == null) return;
@@ -155,7 +216,7 @@ class AuthController extends StateNotifier<bool> {
     state = true;
     try {
       await _ref.read(userServiceProvider).updateFields(currentUser.uid, {
-        'name': name,
+        'name': name.trim(),
       });
     } finally {
       state = false;

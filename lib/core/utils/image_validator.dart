@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
 
@@ -61,22 +61,28 @@ class ImageValidator {
   }
 
   /// Validate all aspects of an image
-  static ValidationResult validateImage(Uint8List bytes) {
-    // First check file size
+  static Future<ValidationResult> validateImage(Uint8List bytes) async {
+    // First check file size (lightweight)
     final sizeResult = validateFileSize(bytes);
     if (!sizeResult.isValid) return sizeResult;
 
-    // Then check if it's a valid image and dimensions
-    final imageResult = validateImageData(bytes);
+    // Then check if it's a valid image and dimensions (heavyweight)
+    // Fix: Move decoding off the UI thread to avoid main-thread blocking JANK.
+    final imageResult = await compute(_validateImageDataIsolate, bytes);
     if (!imageResult.isValid) return imageResult;
 
-    // All checks passed, return dimensions and size warning if exists
+    // All checks passed
     return ValidationResult(
       isValid: true,
       warningMessage: sizeResult.warningMessage,
       width: imageResult.width,
       height: imageResult.height,
     );
+  }
+
+  /// Internal worker for Isolate validation
+  static ValidationResult _validateImageDataIsolate(Uint8List bytes) {
+    return validateImageData(bytes);
   }
 
   /// Show validation error dialog

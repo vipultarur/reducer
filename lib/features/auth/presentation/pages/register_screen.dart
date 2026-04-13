@@ -5,13 +5,16 @@ import 'package:reducer/features/auth/presentation/providers/auth_providers.dart
 import 'package:iconsax/iconsax.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+  final String? redirectTo;
+
+  const RegisterScreen({super.key, this.redirectTo});
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+  static final RegExp _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -30,12 +33,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     try {
-      await ref.read(authControllerProvider.notifier).register(
-        _nameController.text.trim(),
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
-      if (mounted) context.go('/home');
+      await ref
+          .read(authControllerProvider.notifier)
+          .register(
+            _nameController.text.trim(),
+            _emailController.text.trim(),
+            _passwordController.text.trim(),
+          );
+      if (mounted) context.go(_postAuthRoute());
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -48,7 +53,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _googleSignIn() async {
     try {
       await ref.read(authControllerProvider.notifier).signInWithGoogle();
-      if (mounted) context.go('/home');
+      if (mounted) context.go(_postAuthRoute());
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -56,6 +61,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         );
       }
     }
+  }
+
+  String _postAuthRoute() {
+    final target = widget.redirectTo;
+    if (target == null || target.isEmpty) return '/home';
+    if (!target.startsWith('/')) return '/home';
+    if (target == '/login' || target == '/register' || target == '/splash') {
+      return '/home';
+    }
+    return target;
+  }
+
+  String _loginRoute() {
+    final target = widget.redirectTo;
+    if (target == null || target.isEmpty) return '/login';
+    return '/login?redirect=${Uri.encodeComponent(target)}';
   }
 
   @override
@@ -67,7 +88,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Iconsax.arrow_left),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go(_loginRoute()),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -111,7 +132,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     Text(
                       'Join AI Image Pro and start creating',
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.6,
+                        ),
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -128,7 +151,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Please enter name';
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter name';
+                        }
+                        if (value.trim().length < 2) {
+                          return 'Name must be at least 2 characters';
+                        }
                         return null;
                       },
                     ),
@@ -146,8 +174,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         ),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Please enter email';
-                        if (!value.contains('@')) return 'Please enter valid email';
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter email';
+                        }
+                        if (!_emailRegex.hasMatch(value.trim())) {
+                          return 'Please enter a valid email';
+                        }
                         return null;
                       },
                     ),
@@ -161,16 +193,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         labelText: 'Password',
                         prefixIcon: const Icon(Iconsax.lock),
                         suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword ? Iconsax.eye : Iconsax.eye_slash),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          icon: Icon(
+                            _obscurePassword ? Iconsax.eye : Iconsax.eye_slash,
+                          ),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) return 'Please enter password';
-                        if (value.length < 6) return 'Password must be at least 6 characters';
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter password';
+                        }
+                        if (value.length < 6) {
+                          return 'Password must be at least 6 characters';
+                        }
                         return null;
                       },
                     ),
@@ -181,13 +221,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       onPressed: isLoading ? null : _register,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                         backgroundColor: theme.colorScheme.primary,
                         foregroundColor: theme.colorScheme.onPrimary,
                       ),
                       child: isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('Register', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          : const Text(
+                              'Register',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 24),
 
@@ -214,7 +262,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       label: const Text('Register with Google'),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 32),
@@ -223,10 +273,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Already have an account?', style: theme.textTheme.bodyMedium),
+                        Text(
+                          'Already have an account?',
+                          style: theme.textTheme.bodyMedium,
+                        ),
                         TextButton(
-                          onPressed: () => context.pop(),
-                          child: const Text('Login', style: TextStyle(fontWeight: FontWeight.bold)),
+                          onPressed: () => context.go(_loginRoute()),
+                          child: const Text(
+                            'Login',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ],
                     ),

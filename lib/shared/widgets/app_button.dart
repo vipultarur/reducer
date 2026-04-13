@@ -31,6 +31,7 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     Widget content = Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -49,10 +50,10 @@ class AppButton extends StatelessWidget {
         else ...[
           if (iconWidget != null) ...[
             iconWidget!,
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
           ] else if (icon != null) ...[
             Icon(icon, size: 20, color: _getForegroundColor(context)),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
           ],
           Text(
             label,
@@ -83,7 +84,7 @@ class AppButton extends StatelessWidget {
           onTap: isLoading ? null : onPressed,
           borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             child: Center(child: child),
           ),
         ),
@@ -93,6 +94,7 @@ class AppButton extends StatelessWidget {
 
   BoxDecoration? _getBoxDecoration(BuildContext context) {
     final borderRadius = BorderRadius.circular(AppSpacing.radiusFull);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     switch (style) {
       case AppButtonStyle.premium:
@@ -117,7 +119,7 @@ class AppButton extends StatelessWidget {
         );
       case AppButtonStyle.secondary:
         return BoxDecoration(
-          color: AppColors.secondary,
+          color: isDark ? AppColors.darkSurface : AppColors.secondary,
           borderRadius: borderRadius,
         );
       case AppButtonStyle.outline:
@@ -131,10 +133,13 @@ class AppButton extends StatelessWidget {
   }
 
   Color _getForegroundColor(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     switch (style) {
       case AppButtonStyle.outline:
       case AppButtonStyle.ghost:
         return AppColors.primary;
+      case AppButtonStyle.secondary:
+        return isDark ? Colors.white : Colors.black87;
       default:
         return Colors.white;
     }

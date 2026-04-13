@@ -35,31 +35,42 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   }
 
   Future<void> _initializeApp() async {
-    // 1. Minimum splash time for branding
-    await Future.delayed(const Duration(milliseconds: 2500));
-
-    if (!mounted) return;
-
+    // Start min delay and heavy lifting concurrently
+    final minDelay = Future.delayed(const Duration(milliseconds: 1000));
+    
     try {
-      // 2. Load premium state
+      // 1. Load premium state & sync it with AdManager
       final premiumState = ref.read(premiumControllerProvider);
       AdManager.isPremium = premiumState.isPro;
 
-      // 3. Initialize ads (consent-aware)
-      await AdManager.initialize();
+      // 2. Initialize essential services concurrently
+      await Future.wait([
+        AdManager.initialize(),
+        _initializeAuth(),
+      ]);
 
-      // 4. Initialize Auth (Anonymous sign-in for cloud sync prep)
-      final authService = ref.read(authServiceProvider);
-      if (authService.currentUser == null) {
-        await authService.signInAnonymously();
-      }
+      // 3. Ensure we've at least shown the brand for a brief moment
+      await minDelay;
+
+      if (!mounted) return;
+
+      // 4. Show Splash Ad (Handles consent internally)
+      await AdManager().showSplashAd(onDone: () {
+        if (mounted) {
+          context.go('/home');
+        }
+      });
     } catch (e) {
       debugPrint('Splash init error: $e');
+      await minDelay;
+      if (mounted) context.go('/home');
     }
+  }
 
-    // 4. Navigate to home once
-    if (mounted) {
-      context.go('/home');
+  Future<void> _initializeAuth() async {
+    final authService = ref.read(authServiceProvider);
+    if (authService.currentUser == null) {
+      await authService.signInAnonymously();
     }
   }
 

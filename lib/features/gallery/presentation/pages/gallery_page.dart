@@ -45,25 +45,6 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     final items = historyAsync.valueOrNull?.items ?? const <HistoryItem>[];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Edit History'),
-        actions: [
-          if (items.isNotEmpty)
-            IconButton(
-              icon: const Icon(Iconsax.trash),
-              onPressed: () => showDialog(
-                context: context,
-                builder: (context) => ClearHistoryDialog(
-                  onClear: () async {
-                    final notifier = await ref.readHistoryControllerReady();
-                    await notifier.clearAll();
-                  },
-                ),
-              ),
-
-            ),
-        ],
-      ),
       body: Column(
         children: [
           // Fix: Delay banner platform view until history is ready.
@@ -74,8 +55,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
               error: (error, stackTrace) => GalleryErrorState(
                 error: error,
                 onRetry: () async {
-                  final notifier = await ref.readHistoryControllerReady();
-                  await notifier.loadHistory();
+                  await ref.read(historyControllerProvider.notifier).loadHistory();
                 },
               ),
               data: (history) {
@@ -102,9 +82,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                             const Icon(Iconsax.trash, color: Colors.white),
                       ),
                       onDismissed: (_) async {
-                        final notifier =
-                            await ref.readHistoryControllerReady();
-                        await notifier.removeItem(item.id);
+                        await ref.read(historyControllerProvider.notifier).removeItem(item.id);
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -115,7 +93,6 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                         );
                       },
                       child: HistoryCard(item: item, appDocDir: _appDocDir)
-
                           .animate()
                           .fadeIn(
                             delay: Duration(milliseconds: 50 * index),
@@ -129,8 +106,21 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           ),
         ],
       ),
+      floatingActionButton: items.isNotEmpty
+          ? FloatingActionButton(
+              mini: true,
+              backgroundColor: AppColors.error,
+              onPressed: () => showDialog(
+                context: context,
+                builder: (context) => ClearHistoryDialog(
+                  onClear: () async {
+                    await ref.read(historyControllerProvider.notifier).clearAll();
+                  },
+                ),
+              ),
+              child: const Icon(Iconsax.trash, color: Colors.white),
+            )
+          : null,
     );
   }
-
 }
-

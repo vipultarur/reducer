@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart' as google_auth;
 
@@ -9,26 +10,32 @@ import 'core/theme/app_theme.dart';
 import 'core/ads/ad_manager.dart';
 import 'core/ads/consent_manager.dart';
 import 'core/routes/app_router.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // 1. Configure global image cache early to avoid memory spikes
   PaintingBinding.instance.imageCache
     ..maximumSizeBytes = 120 << 20 // 120MB
     ..maximumSize = 200;
 
-  // 2. Core initialization
-  await Firebase.initializeApp();
-  await google_auth.GoogleSignIn.instance.initialize();
+  // 2. Core initialization (Parallelized for speed)
+  // Defer non-critical services to run concurrently
+  final initFuture = Future.wait([
+    Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
+    ConsentManager().configure(
+      testDeviceIds: _umpTestDeviceIdsFromEnv(),
+      forceEeaInDebug: kDebugMode,
+    ),
+  ]);
 
-  // 3. Configure UMP debug settings before any ad request is made.
-  await ConsentManager().configure(
-    testDeviceIds: _umpTestDeviceIdsFromEnv(),
-    forceEeaInDebug: kDebugMode,
-  );
-  
-  // 4. Start App
+  // Non-blocking initialization for Auth
+  unawaited(google_auth.GoogleSignIn.instance.initialize());
+
+  await initFuture;
+
+  // 3. Start App
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -80,4 +87,3 @@ class _MyAppState extends ConsumerState<MyApp> {
     );
   }
 }
-

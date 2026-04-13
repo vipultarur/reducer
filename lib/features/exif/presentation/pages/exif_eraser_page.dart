@@ -7,7 +7,7 @@ import 'package:gal/gal.dart';
 import 'dart:io';
 import 'package:reducer/core/theme/design_tokens.dart';
 import 'package:reducer/core/theme/app_theme.dart';
-import 'package:reducer/shared/presentation/widgets/custom_button.dart';
+import 'package:reducer/shared/widgets/app_button.dart';
 import 'package:reducer/shared/presentation/widgets/ads/banner_ad_widget.dart';
 import 'package:reducer/core/ads/ad_manager.dart';
 import 'package:reducer/core/services/permission_service.dart';
@@ -152,13 +152,14 @@ class _ExifEraserScreenState extends State<ExifEraserScreen> {
                   const SizedBox(height: 32),
                   
                   if (_selectedImages != null)
-                    CustomButton(
+                    AppButton(
                       label: _isProcessing ? 'Cleaning...' : 'Clean & Save',
                       icon: Iconsax.shield_tick,
                       onPressed: () => AdManager().showInterstitialAd(
                         onComplete: _cleanMetadata,
                       ),
                       isLoading: _isProcessing,
+                      isFullWidth: true,
                     ),
                 ],
               ),
@@ -168,8 +169,6 @@ class _ExifEraserScreenState extends State<ExifEraserScreen> {
       ),
     );
   }
-
-  // permission handled by PermissionService
 
   Widget _buildUploadPlaceholder() {
     return GestureDetector(
@@ -228,4 +227,3 @@ class _ExifEraserScreenState extends State<ExifEraserScreen> {
     );
   }
 }
-

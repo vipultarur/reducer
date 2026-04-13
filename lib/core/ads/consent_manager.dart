@@ -9,6 +9,10 @@ class ConsentManager {
 
   static final ConsentManager _instance = ConsentManager._internal();
   factory ConsentManager() => _instance;
+  static const bool _forceUmpInDebug = bool.fromEnvironment(
+    'FORCE_UMP_DEBUG',
+    defaultValue: false,
+  );
 
   ConsentDebugSettings? _debugSettings;
   bool _hasRequestedConsent = false;
@@ -43,6 +47,13 @@ class ConsentManager {
 
   /// Requests latest consent info and shows form when required.
   Future<void> gatherConsent() async {
+    // Keep debug runs clean unless explicitly testing UMP.
+    if (kDebugMode && !_forceUmpInDebug) {
+      _hasRequestedConsent = true;
+      _canRequestAdsCache = true;
+      return;
+    }
+
     final completer = Completer<void>();
 
     final params = ConsentRequestParameters(
@@ -83,9 +94,20 @@ class ConsentManager {
       },
       (FormError error) async {
         // Fix: App keeps running even when consent info update fails.
-        debugPrint(
-          '[ConsentManager] Consent info update failed (${error.errorCode}): ${error.message}',
-        );
+        if (error.errorCode == 3) {
+          debugPrint('------------------------------------------------------------');
+          debugPrint('[ConsentManager] CRITICAL: AdMob Publisher Misconfiguration!');
+          debugPrint('[ConsentManager] ErrorCode 3 usually means:');
+          debugPrint('1. You have NOT created a GDPR message for this app in AdMob.');
+          debugPrint('2. The message is not "Published".');
+          debugPrint('3. The App ID in AndroidManifest does not match the dashboard app.');
+          debugPrint('Check: https://apps.admob.com/v2/privacymessaging');
+          debugPrint('------------------------------------------------------------');
+        } else {
+          debugPrint(
+            '[ConsentManager] Consent info update failed (${error.errorCode}): ${error.message}',
+          );
+        }
         _canRequestAdsCache = await canRequestAds(refresh: true);
         _hasRequestedConsent = true;
         if (!completer.isCompleted) completer.complete();

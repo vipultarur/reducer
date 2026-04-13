@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '690861600563',
     projectId: 'reducer-3e8dc',
     storageBucket: 'reducer-3e8dc.firebasestorage.app',
-    iosBundleId: 'com.example.reducer',
+    iosBundleId: 'com.tarurinfotech.reducer',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '690861600563',
     projectId: 'reducer-3e8dc',
     storageBucket: 'reducer-3e8dc.firebasestorage.app',
-    iosBundleId: 'com.example.reducer',
+    iosBundleId: 'com.tarurinfotech.reducer',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

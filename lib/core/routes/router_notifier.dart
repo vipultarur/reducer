@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:reducer/features/auth/presentation/providers/auth_providers.dart';
+import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 
 /// A notifier that manages the redirect logic for GoRouter based on authentication state.
 /// This class implements [Listenable] so GoRouter can react to state changes.
@@ -21,21 +22,40 @@ class RouterNotifier extends ChangeNotifier {
   }
 
   String? redirect(BuildContext context, GoRouterState state) {
-    final bool loggingIn = state.matchedLocation == '/login' || state.matchedLocation == '/register';
-    
-    // If not logged in and not on login/register pages, redirect to login
-    if (_user == null) {
-      return loggingIn ? null : '/login';
+    final path = state.matchedLocation;
+    final isAuthRoute = path == '/login' || path == '/register';
+    final isLoggedIn = _user != null && !_user!.isAnonymous;
+    final isPro = _ref.read(premiumControllerProvider).isPro;
+    final requestedRedirect = state.uri.queryParameters['redirect'];
+
+    // Guest mode is allowed across the app, including profile.
+
+    // Hard-gate premium-only route.
+    if (path == '/bulk-editor' && !isPro) {
+      return '/premium';
     }
 
-    // If logged in and on login/register pages, redirect to home
-    if (loggingIn) {
+    // Keep authenticated users out of auth forms.
+    if (isAuthRoute && isLoggedIn) {
+      if (_isSafeRedirectTarget(requestedRedirect)) {
+        return requestedRedirect;
+      }
       return '/';
     }
 
-    // No redirect needed
     return null;
+  }
+
+  bool _isSafeRedirectTarget(String? target) {
+    if (target == null || target.isEmpty) return false;
+    if (!target.startsWith('/')) return false;
+    if (target == '/login' || target == '/register' || target == '/splash') {
+      return false;
+    }
+    return true;
   }
 }
 
-final routerNotifierProvider = Provider<RouterNotifier>((ref) => RouterNotifier(ref));
+final routerNotifierProvider = Provider<RouterNotifier>(
+  (ref) => RouterNotifier(ref),
+);

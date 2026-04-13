@@ -10,7 +10,13 @@ import 'feature_list_tile.dart';
 
 class ProToolsSection extends StatelessWidget {
   final bool isPro;
-  const ProToolsSection({super.key, required this.isPro});
+  final bool isLoggedIn;
+
+  const ProToolsSection({
+    super.key,
+    required this.isPro,
+    required this.isLoggedIn,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,12 +29,20 @@ class ProToolsSection extends StatelessWidget {
             const Spacer(),
             if (!isPro)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs2,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.premiumContainer,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
-                child: Text('PRO', style: AppTextStyles.badgeLabel(context).copyWith(color: AppColors.premium)),
+                child: Text(
+                  'PRO',
+                  style: AppTextStyles.badgeLabel(context).copyWith(
+                    color: AppColors.premium,
+                  ),
+                ),
               ),
           ],
         ),
@@ -39,7 +53,8 @@ class ProToolsSection extends StatelessWidget {
           icon: Iconsax.layer,
           isPro: true,
           hasAccess: isPro,
-          onTap: () => _handleProFeature(context, isPro, '/bulk-editor'),
+          onTap: () =>
+              _handleProFeature(context, isPro, isLoggedIn, '/bulk-editor'),
         ),
         const SizedBox(height: AppSpacing.md),
         FeatureListTile(
@@ -67,12 +82,24 @@ class ProToolsSection extends StatelessWidget {
     ).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideY(begin: 0.1, end: 0);
   }
 
-  void _handleProFeature(BuildContext context, bool isPro, String route) {
+
+  void _handleProFeature(
+    BuildContext context,
+    bool isPro,
+    bool isLoggedIn,
+    String route,
+  ) {
     if (isPro) {
       context.push(route);
-    } else {
-      _showPremiumRequiredDialog(context);
+      return;
     }
+
+    if (!isLoggedIn) {
+      _showLoginRequiredDialog(context);
+      return;
+    }
+
+    _showPremiumRequiredDialog(context);
   }
 
   void _showPremiumRequiredDialog(BuildContext context) {
@@ -102,4 +129,39 @@ class ProToolsSection extends StatelessWidget {
       ),
     );
   }
+
+  void _showLoginRequiredDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.login, color: AppColors.primary, size: 48),
+        title: const Text('Login Required'),
+        content: const Text(
+          'Please login first to access this Pro feature and continue with Premium upgrade.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Maybe Later'),
+          ),
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.push('/register');
+            },
+            child: const Text('Register'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.push('/login');
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

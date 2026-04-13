@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:reducer/core/models/result.dart';
 
 /// Provider for the Auth Service
 final authServiceProvider = Provider<AuthService>((ref) => AuthService());
@@ -23,40 +24,45 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
 
   /// Sign in anonymously.
-  /// 
-  /// Useful for persistent storage before user creates an account.
-  Future<UserCredential?> signInAnonymously() async {
+  Future<Result<UserCredential?>> signInAnonymously() async {
     try {
-      return await _auth.signInAnonymously();
+      final credential = await _auth.signInAnonymously();
+      return Result.success(credential);
     } catch (e) {
       debugPrint('[AuthService] Anonymous sign-in failed: $e');
-      return null;
+      return Result.failure('Anonymous sign-in failed. Please try again.', e);
     }
   }
 
   /// Sign in with Email and Password
-  Future<UserCredential?> signInWithEmail(String email, String password) async {
+  Future<Result<UserCredential?>> signInWithEmail(String email, String password) async {
     try {
-      return await _auth.signInWithEmailAndPassword(
+      final credential = await _auth.signInWithEmailAndPassword(
         email: email, 
         password: password,
       );
+      return Result.success(credential);
+    } on FirebaseAuthException catch (e) {
+      debugPrint('[AuthService] Email sign-in failed: ${e.code}');
+      return Result.failure(_mapAuthError(e.code), e);
     } catch (e) {
-      debugPrint('[AuthService] Email sign-in failed: $e');
-      rethrow;
+      return Result.failure('An unexpected error occurred.', e);
     }
   }
 
   /// Register with Email and Password
-  Future<UserCredential?> registerWithEmail(String email, String password) async {
+  Future<Result<UserCredential?>> registerWithEmail(String email, String password) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email, 
         password: password,
       );
+      return Result.success(credential);
+    } on FirebaseAuthException catch (e) {
+      debugPrint('[AuthService] Email registration failed: ${e.code}');
+      return Result.failure(_mapAuthError(e.code), e);
     } catch (e) {
-      debugPrint('[AuthService] Email registration failed: $e');
-      rethrow;
+      return Result.failure('An unexpected error occurred.', e);
     }
   }
 
@@ -66,6 +72,17 @@ class AuthService {
       await _auth.signOut();
     } catch (e) {
       debugPrint('[AuthService] Sign-out failed: $e');
+    }
+  }
+
+  String _mapAuthError(String code) {
+    switch (code) {
+      case 'user-not-found': return 'No user found with this email.';
+      case 'wrong-password': return 'Incorrect password.';
+      case 'email-already-in-use': return 'An account already exists for this email.';
+      case 'weak-password': return 'The password provided is too weak.';
+      case 'invalid-email': return 'The email address is not valid.';
+      default: return 'Authentication failed: $code';
     }
   }
 }

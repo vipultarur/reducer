@@ -26,15 +26,25 @@ class FirestoreSyncService {
     return _db.collection('users').doc(user!.uid).collection('history');
   }
 
-  /// Sync a new history item to Firestore.
-  Future<void> syncItem(HistoryItem item) async {
+  /// Sync a new history item to Firestore with retry logic.
+  Future<void> syncItem(HistoryItem item, {int maxRetries = 3}) async {
     if (!isAuthenticated) return;
 
-    try {
-      await _historyCollection!.doc(item.id).set(item.toJson());
-      debugPrint('[SyncService] Item ${item.id} synced to cloud.');
-    } catch (e) {
-      debugPrint('[SyncService] Failed to sync item: $e');
+    int attempts = 0;
+    while (attempts < maxRetries) {
+      try {
+        await _historyCollection!.doc(item.id).set(item.toJson());
+        debugPrint('[SyncService] Item ${item.id} synced to cloud.');
+        return;
+      } catch (e) {
+        attempts++;
+        debugPrint('[SyncService] Sync attempt $attempts failed for item ${item.id}: $e');
+        if (attempts >= maxRetries) {
+          debugPrint('[SyncService] Max retries reached for item ${item.id}.');
+        } else {
+          await Future.delayed(Duration(seconds: attempts * 2)); // Exponential backoff
+        }
+      }
     }
   }
 
@@ -46,17 +56,17 @@ class FirestoreSyncService {
       await _historyCollection!.doc(id).delete();
       debugPrint('[SyncService] Item $id deleted from cloud.');
     } catch (e) {
-      debugPrint('[SyncService] Failed to delete item: $e');
+      debugPrint('[SyncService] Failed to delete item $id: $e');
     }
   }
 
-  /// Get real-time stream of history items from the cloud.
-  Stream<List<HistoryItem>> get cloudHistoryStream {
+  /// Get real-time stream of history items with pagination support.
+  Stream<List<HistoryItem>> getCloudHistoryStream({int limit = 20}) {
     if (!isAuthenticated) return Stream.value([]);
 
     return _historyCollection!
         .orderBy('timestamp', descending: true)
-        .limit(20) // ── OPTIMIZATION: Limit real-time sync to latest 20 items ──
+        .limit(limit) 
         .snapshots()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
@@ -69,16 +79,24 @@ class FirestoreSyncService {
   Future<void> syncLocalItems(List<HistoryItem> items) async {
     if (!isAuthenticated || items.isEmpty) return;
 
-    final batch = _db.batch();
-    for (final item in items) {
-      batch.set(_historyCollection!.doc(item.id), item.toJson());
+    // Firestore batch limit is 500 operations.
+    final chunks = <List<HistoryItem>>[];
+    for (var i = 0; i < items.length; i += 500) {
+      chunks.add(items.sublist(i, i + 500 > items.length ? items.length : i + 500));
     }
 
-    try {
-      await batch.commit();
-      debugPrint('[SyncService] Batch sync of ${items.length} items complete.');
-    } catch (e) {
-      debugPrint('[SyncService] Batch sync failed: $e');
+    for (final chunk in chunks) {
+      final batch = _db.batch();
+      for (final item in chunk) {
+        batch.set(_historyCollection!.doc(item.id), item.toJson());
+      }
+
+      try {
+        await batch.commit();
+        debugPrint('[SyncService] Batch sync of ${chunk.length} items complete.');
+      } catch (e) {
+        debugPrint('[SyncService] Batch sync failed: $e');
+      }
     }
   }
 }

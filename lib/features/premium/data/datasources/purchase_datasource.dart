@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:reducer/core/ads/ad_manager.dart';
@@ -23,8 +24,8 @@ const int _kRevalidationIntervalHours = 24;
 /// Provider for managing the Premium/Pro status and purchase flow.
 final premiumControllerProvider =
     StateNotifierProvider<PurchaseNotifier, PurchaseState>(
-  (ref) => PurchaseNotifier(ref),
-);
+      (ref) => PurchaseNotifier(ref),
+    );
 
 // ─── State ──────────────────────────────────────────────────────────────────
 class PurchaseState {
@@ -78,6 +79,12 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
     _init();
   }
 
+  User? get _currentUser => _ref.read(authServiceProvider).currentUser;
+  bool get _hasEligiblePremiumAccount {
+    final user = _currentUser;
+    return user != null && !user.isAnonymous;
+  }
+
   // ── Initialization ──────────────────────────────────────────────────────
 
   Future<void> _init() async {
@@ -102,19 +109,29 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
   // ── Secure Pro Status ───────────────────────────────────────────────────
 
   Future<void> _checkProStatusLocally() async {
+    if (!_hasEligiblePremiumAccount) {
+      AdManager.isPremium = false;
+      if (!mounted) return;
+      state = state.copyWith(isPro: false);
+      return;
+    }
+
     final String? isProStr = await _secureStorage.read(key: _kSecIsPro);
     final isPro = isProStr == 'true';
 
     if (isPro) {
-      final String? lastVerifiedMsStr =
-          await _secureStorage.read(key: _kSecProVerifiedAt);
+      final String? lastVerifiedMsStr = await _secureStorage.read(
+        key: _kSecProVerifiedAt,
+      );
       final lastVerifiedMs = int.tryParse(lastVerifiedMsStr ?? '') ?? 0;
       final timeSinceMs =
           DateTime.now().millisecondsSinceEpoch - lastVerifiedMs;
       final hoursSince = timeSinceMs / (1000 * 60 * 60);
 
       if (hoursSince > _kRevalidationIntervalHours) {
-        debugPrint('[Purchase] Pro-status stale (${hoursSince.toStringAsFixed(1)}h)');
+        debugPrint(
+          '[Purchase] Pro-status stale (${hoursSince.toStringAsFixed(1)}h)',
+        );
       }
     }
 
@@ -148,7 +165,11 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
 
   Future<void> fetchOffersAndCheckStatus() async {
     if (!mounted) return;
-    state = state.copyWith(isLoading: true, errorMessage: '', successMessage: '');
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: '',
+      successMessage: '',
+    );
 
     try {
       await _checkProStatusLocally();
@@ -156,20 +177,30 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
       final bool available = await _iap.isAvailable();
       if (!available) {
         if (!mounted) return;
-        state = state.copyWith(errorMessage: 'Store unavailable.', isLoading: false);
+        state = state.copyWith(
+          errorMessage: 'Store unavailable.',
+          isLoading: false,
+        );
         return;
       }
 
       // Query parent product ID(s)
-      final ProductDetailsResponse response = await _iap.queryProductDetails(AppConfig.productIds);
+      final ProductDetailsResponse response = await _iap.queryProductDetails(
+        AppConfig.productIds,
+      );
 
       if (response.notFoundIDs.isNotEmpty) {
-        debugPrint('[Purchase] ❌ Products not found: ${response.notFoundIDs}. Check your Google Play Console Product IDs.');
+        debugPrint(
+          '[Purchase] ❌ Products not found: ${response.notFoundIDs}. Check your Google Play Console Product IDs.',
+        );
       }
 
       if (response.error != null) {
         if (!mounted) return;
-        state = state.copyWith(errorMessage: 'Store error: ${response.error?.message}', isLoading: false);
+        state = state.copyWith(
+          errorMessage: 'Store error: ${response.error?.message}',
+          isLoading: false,
+        );
         return;
       }
 
@@ -182,18 +213,23 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
           if (offers != null && offers.isNotEmpty) {
             for (final offer in offers) {
               final plan = PremiumPlan(product: product, offer: offer);
-              
+
               // Unique key for preventing duplicate UI entries
-              final planId = '${product.id}_${offer.basePlanId}_${offer.offerId ?? "base"}';
-              
+              final planId =
+                  '${product.id}_${offer.basePlanId}_${offer.offerId ?? "base"}';
+
               if (!seenPlanIds.contains(planId)) {
                 packages.add(plan);
                 seenPlanIds.add(planId);
-                debugPrint('🔹 Plan Loaded: ${plan.titleText} | ${plan.price} | BasePlan: ${offer.basePlanId} | Offer: ${offer.offerId ?? "Standard"}');
+                debugPrint(
+                  '🔹 Plan Loaded: ${plan.titleText} | ${plan.price} | BasePlan: ${offer.basePlanId} | Offer: ${offer.offerId ?? "Standard"}',
+                );
               }
             }
           } else {
-            debugPrint('[Purchase] ⚠️ Product ${product.id} has no subscriptionOfferDetails. Check Base Plan status.');
+            debugPrint(
+              '[Purchase] ⚠️ Product ${product.id} has no subscriptionOfferDetails. Check Base Plan status.',
+            );
             packages.add(PremiumPlan(product: product));
           }
         } else {
@@ -217,7 +253,10 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
     } catch (e) {
       debugPrint('[Purchase] Fetch Error: $e');
       if (!mounted) return;
-      state = state.copyWith(errorMessage: 'Failed to load plans: $e', isLoading: false);
+      state = state.copyWith(
+        errorMessage: 'Failed to load plans: $e',
+        isLoading: false,
+      );
     }
   }
 
@@ -231,29 +270,43 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
 
   // ── Purchase ────────────────────────────────────────────────────────────
 
-  /// Purchases the selected package. 
-  /// 
+  /// Purchases the selected package.
+  ///
   /// IMPORTANT: For Google Play Billing 5+, the [offerToken] is mandatory for subscriptions.
   Future<void> purchaseSelectedPackage() async {
     if (state.selectedPackage == null || _purchaseInProgress) return;
+    if (!_hasEligiblePremiumAccount) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Please login to unlock Premium',
+        successMessage: '',
+      );
+      return;
+    }
 
     final plan = state.selectedPackage!;
     _purchaseInProgress = true;
-    state = state.copyWith(isLoading: true, errorMessage: '', successMessage: '');
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: '',
+      successMessage: '',
+    );
 
     try {
       PurchaseParam purchaseParam;
 
       if (Platform.isAndroid) {
-        final String? offerToken = (plan.offer as dynamic)?.offerToken;
-        
+        final String? offerToken = _resolveAndroidOfferToken(plan);
+
         if (offerToken == null) {
-          throw Exception('Missing offerToken for Android subscription. Ensure base plans are active.');
+          throw Exception(
+            'Missing offerToken for Android subscription. Ensure base plans are active.',
+          );
         }
 
         // TODO: Implement Upgrade/Downgrade logic with GooglePlayPurchaseParam(changeSubscriptionParam: ...)
         // if user already has an active subscription token.
-        
+
         purchaseParam = GooglePlayPurchaseParam(
           productDetails: plan.product,
           offerToken: offerToken,
@@ -266,28 +319,72 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
     } catch (e) {
       debugPrint('[Purchase] Initiation Failed: $e');
       if (!mounted) return;
-      state = state.copyWith(isLoading: false, errorMessage: 'Purchase failed: ${e.toString()}');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Purchase failed: ${e.toString()}',
+      );
     } finally {
       _purchaseInProgress = false;
     }
   }
 
+  /// Resolve Google Play subscription offer token across plugin wrapper versions.
+  ///
+  /// Newer `in_app_purchase_android` versions expose it via:
+  /// - `GooglePlayProductDetails.offerToken`
+  /// - `SubscriptionOfferDetailsWrapper.offerIdToken`
+  String? _resolveAndroidOfferToken(PremiumPlan plan) {
+    try {
+      if (plan.product is GooglePlayProductDetails) {
+        final details = plan.product as GooglePlayProductDetails;
+        final token = details.offerToken;
+        if (token != null && token.isNotEmpty) return token;
+      }
+    } catch (_) {}
+
+    try {
+      final dynamic offer = plan.offer;
+      final String? token = offer?.offerIdToken as String?;
+      if (token != null && token.isNotEmpty) return token;
+    } catch (_) {}
+
+    return null;
+  }
+
   // ── Restore ─────────────────────────────────────────────────────────────
 
   Future<void> restorePurchases() async {
-    state = state.copyWith(isLoading: true, errorMessage: '', successMessage: '');
+    if (!_hasEligiblePremiumAccount) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Please login to unlock Premium',
+        successMessage: '',
+      );
+      return;
+    }
+
+    state = state.copyWith(
+      isLoading: true,
+      errorMessage: '',
+      successMessage: '',
+    );
     try {
       debugPrint('[Purchase] Restoring...');
       await _iap.restorePurchases();
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isLoading: false, errorMessage: 'Restore failed: $e');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Restore failed: $e',
+      );
     }
   }
 
   // ── Stream Listener ─────────────────────────────────────────────────────
 
-  Future<void> _listenToPurchaseUpdated(List<PurchaseDetails> purchaseDetailsList) async {
+  Future<void> _listenToPurchaseUpdated(
+    List<PurchaseDetails> purchaseDetailsList,
+  ) async {
     for (final PurchaseDetails purchaseDetails in purchaseDetailsList) {
       switch (purchaseDetails.status) {
         case PurchaseStatus.pending:
@@ -322,7 +419,8 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
       }
 
       // Verify this is a product we recognize
-      if (details.productID == AppConfig.productId || AppConfig.productIds.contains(details.productID)) {
+      if (details.productID == AppConfig.productId ||
+          AppConfig.productIds.contains(details.productID)) {
         await _setProStatusLocally(true);
         await _syncSubscriptionToFirestore(details);
       }
@@ -330,19 +428,24 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
       if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
-        successMessage: details.status == PurchaseStatus.restored ? 'Restored Successfully!' : 'Welcome to Premium! 🎉',
+        successMessage: details.status == PurchaseStatus.restored
+            ? 'Restored Successfully!'
+            : 'Welcome to Premium! 🎉',
       );
     } catch (e) {
       debugPrint('[Purchase] Handle Success Error: $e');
       if (!mounted) return;
-      state = state.copyWith(isLoading: false, errorMessage: 'Verification failed.');
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Verification failed.',
+      );
     }
   }
 
   Future<void> _syncSubscriptionToFirestore(PurchaseDetails details) async {
     try {
       final user = _ref.read(authServiceProvider).currentUser;
-      if (user == null) {
+      if (user == null || user.isAnonymous) {
         debugPrint('[Purchase] Sync failed: User not logged in.');
         return;
       }
@@ -351,7 +454,9 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
       final Map<String, dynamic> subData = {
         'subscriptionStatus': 'premium',
         'productId': details.productID,
-        'purchaseToken': details.verificationData.serverVerificationData, // CRITICAL for server-side validation
+        'purchaseToken': details
+            .verificationData
+            .serverVerificationData, // CRITICAL for server-side validation
         'orderId': details.purchaseID,
         'subscriptionStartDate': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -361,7 +466,7 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
         subData['priceAmount'] = selectedPlan.price;
         subData['priceCurrencyCode'] = selectedPlan.product.currencyCode;
         subData['billingPeriod'] = selectedPlan.isYearly ? 'yearly' : 'monthly';
-        
+
         // Strictly capture basePlanId for backend tracking
         try {
           if (selectedPlan.offer != null) {
@@ -371,8 +476,12 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
         } catch (_) {}
       }
 
-      await _ref.read(userServiceProvider).updateSubscription(user.uid, subData);
-      debugPrint('[Purchase] ✅ Firestore synced successfully with PurchaseToken.');
+      await _ref
+          .read(userServiceProvider)
+          .updateSubscription(user.uid, subData);
+      debugPrint(
+        '[Purchase] ✅ Firestore synced successfully with PurchaseToken.',
+      );
     } catch (e) {
       debugPrint('[Purchase] ❌ Firestore sync error: $e');
     }

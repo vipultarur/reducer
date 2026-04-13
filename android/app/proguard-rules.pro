@@ -6,12 +6,14 @@
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
 
-# Google Play Services / Firebase
--keep class com.google.android.gms.** { *; }
+# Google Play Services / Firebase - Only keep essential classes
 -keep class com.google.firebase.** { *; }
+-keep interface com.google.firebase.** { *; }
 
-# Iconsax / Icons
--keep class com.iconsax.** { *; }
+# Allow shrinking of common libraries while keeping reflective access safe
+-keep class com.google.android.gms.internal.** { <fields>; <methods>; }
+-dontwarn com.google.android.gms.**
+-dontwarn com.google.firebase.**
 
 # Prevent shrinking of reflective calls used by plugins
 -dontwarn io.flutter.embedding.**

@@ -44,20 +44,19 @@ class HistoryController extends AutoDisposeAsyncNotifier<HistoryState> {
   }
 
   Future<void> loadHistory() async {
-    final current = await _readSafeState();
-    state = AsyncValue.data(current.copyWith(isLoading: true));
+    // Ensuring state is initialized.
+    await future;
+    state = const AsyncLoading();
 
-    final nextState = await AsyncValue.guard(() async {
+    state = await AsyncValue.guard(() async {
       final items = await _loadItemsFromStorage();
       return HistoryState(items: items, isLoading: false);
     });
-
-    state = nextState;
   }
 
-
   Future<void> addItem(HistoryItem item) async {
-    final current = await _readSafeState();
+    final current = await future;
+    
     final updatedItems = [item, ...current.items]
       ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
@@ -65,16 +64,15 @@ class HistoryController extends AutoDisposeAsyncNotifier<HistoryState> {
       current.copyWith(items: updatedItems, isLoading: false),
     );
 
-    // ── CLOUD SYNC: Real-time backup ──────────────────────────────────
     final syncService = ref.read(syncServiceProvider);
     unawaited(syncService.syncItem(item));
 
-    // Fix: Persist in background to keep save flow responsive.
     unawaited(_saveToStorage(updatedItems));
   }
 
   Future<void> removeItem(String id) async {
-    final current = await _readSafeState();
+    final current = await future;
+    
     final updatedItems = current.items
         .where((item) => item.id != id)
         .toList(growable: false);
@@ -83,7 +81,6 @@ class HistoryController extends AutoDisposeAsyncNotifier<HistoryState> {
       current.copyWith(items: updatedItems, isLoading: false),
     );
 
-    // ── CLOUD SYNC: Real-time deletion ────────────────────────────────
     final syncService = ref.read(syncServiceProvider);
     unawaited(syncService.deleteItem(id));
 
@@ -91,20 +88,15 @@ class HistoryController extends AutoDisposeAsyncNotifier<HistoryState> {
   }
 
   Future<void> clearAll() async {
-    final current = await _readSafeState();
-    state = AsyncValue.data(
-      current.copyWith(items: const [], isLoading: false),
+    // Guarantee initialization
+    await future;
+    
+    state = const AsyncValue.data(
+      HistoryState(items: [], isLoading: false),
     );
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_storageKey);
-  }
-
-  Future<HistoryState> _readSafeState() async {
-    final value = state.valueOrNull;
-    if (value != null) return value;
-    // Fix: Wait for provider initialization when called from write flows.
-    return future;
   }
 
   Future<List<HistoryItem>> _loadItemsFromStorage() async {
@@ -114,8 +106,6 @@ class HistoryController extends AutoDisposeAsyncNotifier<HistoryState> {
       if (historyJson == null || historyJson.isEmpty) {
         return const [];
       }
-
-      // Fix: Decode work stays off the UI isolate.
       return compute(_decodeHistory, historyJson);
     } catch (e) {
       debugPrint('Failed to load history: $e');
@@ -126,20 +116,11 @@ class HistoryController extends AutoDisposeAsyncNotifier<HistoryState> {
   Future<void> _saveToStorage(List<HistoryItem> items) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      // Fix: JSON encoding is moved off the UI isolate.
       final historyJson = await compute(_encodeHistory, items);
       await prefs.setStringList(_storageKey, historyJson);
     } catch (e) {
       debugPrint('Failed to save history: $e');
     }
-  }
-}
-
-extension SafeHistoryRead on WidgetRef {
-  Future<HistoryController> readHistoryControllerReady() async {
-    // Fix: .future guarantees notifier state is initialized before use.
-    await read(historyControllerProvider.future);
-    return read(historyControllerProvider.notifier);
   }
 }
 

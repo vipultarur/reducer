@@ -7,6 +7,7 @@ import 'package:reducer/features/auth/presentation/pages/register_screen.dart';
 import 'package:reducer/features/auth/presentation/pages/profile_screen.dart';
 import 'package:reducer/core/routes/router_notifier.dart';
 import 'package:reducer/features/splash/presentation/pages/splash_page.dart';
+import 'package:reducer/features/home/presentation/pages/main_screen.dart';
 import 'package:reducer/features/home/presentation/pages/home_page.dart';
 import 'package:reducer/features/editor/presentation/pages/single_image_page.dart';
 import 'package:reducer/features/bulk/presentation/pages/bulk_image_page.dart';
@@ -18,43 +19,117 @@ import 'package:reducer/features/settings/presentation/pages/privacy_policy_page
 import 'package:reducer/features/gallery/presentation/pages/bulk_history_detail_page.dart';
 import 'package:reducer/features/gallery/data/models/history_item.dart';
 
-
-Widget _splash(BuildContext context, GoRouterState state) => const SplashScreen();
-Widget _home(BuildContext context, GoRouterState state) => const HomeScreen();
-Widget _single(BuildContext context, GoRouterState state) => const SingleImageScreen();
-Widget _bulk(BuildContext context, GoRouterState state) => const BulkImageScreen();
-Widget _premium(BuildContext context, GoRouterState state) => const PremiumScreen();
-Widget _gallery(BuildContext context, GoRouterState state) => const GalleryScreen();
-Widget _exif(BuildContext context, GoRouterState state) => const ExifEraserScreen();
-Widget _settings(BuildContext context, GoRouterState state) => const SettingsScreen();
-Widget _privacy(BuildContext context, GoRouterState state) => const PrivacyPolicyScreen();
-Widget _login(BuildContext context, GoRouterState state) => const LoginScreen();
-Widget _register(BuildContext context, GoRouterState state) => const RegisterScreen();
-Widget _profile(BuildContext context, GoRouterState state) => const ProfileScreen();
-Widget _bulkHistory(BuildContext _, GoRouterState state) => BulkHistoryDetailScreen(item: state.extra as HistoryItem);
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/splash',
     refreshListenable: notifier,
     redirect: notifier.redirect,
     routes: [
-      GoRoute(path: '/splash', builder: _splash),
-      GoRoute(path: '/', builder: _home),
-      GoRoute(path: '/home', builder: _home),
-      GoRoute(path: '/single-editor', builder: _single),
-      GoRoute(path: '/bulk-editor', builder: _bulk),
-      GoRoute(path: '/premium', builder: _premium),
-      GoRoute(path: '/gallery', builder: _gallery),
-      GoRoute(path: '/bulk-history-detail', builder: _bulkHistory),
-      GoRoute(path: '/exif-eraser', builder: _exif),
-      GoRoute(path: '/settings', builder: _settings),
-      GoRoute(path: '/privacy-policy', builder: _privacy),
-      GoRoute(path: '/login', builder: _login),
-      GoRoute(path: '/register', builder: _register),
-      GoRoute(path: '/profile', builder: _profile),
+      GoRoute(
+        path: '/splash',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SplashScreen(),
+      ),
+      
+      // -- MAIN SHELL ROUTES --
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return MainScreen(navigationShell: navigationShell);
+        },
+        branches: [
+          // Home Branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (context, state) => const HomeScreen(),
+              ),
+              GoRoute(
+                path: '/home',
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
+          // Editor Branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/single-editor',
+                builder: (context, state) => const SingleImageScreen(),
+              ),
+            ],
+          ),
+          // History Branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/gallery',
+                builder: (context, state) => const GalleryScreen(),
+              ),
+            ],
+          ),
+          // Premium Branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/premium',
+                builder: (context, state) => const PremiumScreen(),
+              ),
+            ],
+          ),
+          // Profile Branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
+      ),
+
+      // -- OTHER STANDALONE ROUTES --
+      GoRoute(
+        path: '/bulk-editor',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const BulkImageScreen(),
+      ),
+      GoRoute(
+        path: '/bulk-history-detail',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => BulkHistoryDetailScreen(item: state.extra as HistoryItem),
+      ),
+      GoRoute(
+        path: '/exif-eraser',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const ExifEraserScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/privacy-policy',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/login',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => LoginScreen(redirectTo: state.uri.queryParameters['redirect']),
+      ),
+      GoRoute(
+        path: '/register',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => RegisterScreen(redirectTo: state.uri.queryParameters['redirect']),
+      ),
     ],
   );
 });

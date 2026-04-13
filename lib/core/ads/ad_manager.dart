@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'ad_ids.dart';
 import 'consent_manager.dart';
@@ -53,6 +53,8 @@ class AdManager {
     Future.delayed(const Duration(seconds: 1), () {
       loadInterstitialAd();
       loadAppOpenAd();
+      getCachedBanner(); // Preload banner
+      getCachedNative(); // Preload native
     });
   }
 
@@ -225,12 +227,117 @@ class AdManager {
     }
   }
 
+  // ── Persistent Cached Ads ─────────────────────────────────────────────────
+  BannerAd? _cachedBannerAd;
+  bool _isBannerLoading = false;
+
+  NativeAd? _cachedNativeAd;
+  bool _isNativeLoading = false;
+
+  /// Retrieves the persistent banner ad or initiates a load.
+  /// If [forceReload] is true, it will dispose and reload.
+  BannerAd? getCachedBanner() {
+    if (isPremium) return null;
+    if (_cachedBannerAd == null && !_isBannerLoading) {
+      _loadPersistentBanner();
+    }
+    return _cachedBannerAd;
+  }
+
+  /// Retrieves the persistent native ad or initiates a load.
+  NativeAd? getCachedNative() {
+    if (isPremium) return null;
+    if (_cachedNativeAd == null && !_isNativeLoading) {
+      _loadPersistentNative();
+    }
+    return _cachedNativeAd;
+  }
+
+  void _loadPersistentBanner() {
+    if (_isBannerLoading || _cachedBannerAd != null) return;
+    _isBannerLoading = true;
+    
+    BannerAd(
+      adUnitId: AdIds.bannerId,
+      size: AdSize.banner,
+      request: const AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (ad) {
+          _cachedBannerAd = ad as BannerAd;
+          _isBannerLoading = false;
+          debugPrint('[AdManager] ✅ Global Banner Loaded');
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _isBannerLoading = false;
+          _cachedBannerAd = null;
+          debugPrint('[AdManager] ❌ Global Banner Failed: $error');
+          // Retry after delay
+          Future.delayed(const Duration(seconds: 30), _loadPersistentBanner);
+        },
+      ),
+    ).load();
+  }
+
+  void _loadPersistentNative() {
+    if (_isNativeLoading || _cachedNativeAd != null) return;
+    _isNativeLoading = true;
+    
+    NativeAd(
+      adUnitId: AdIds.nativeId,
+      request: const AdRequest(),
+      nativeTemplateStyle: NativeTemplateStyle(
+        templateType: TemplateType.medium,
+        mainBackgroundColor: Colors.white,
+        cornerRadius: 12.0,
+      ),
+      listener: NativeAdListener(
+        onAdLoaded: (ad) {
+          _cachedNativeAd = ad as NativeAd;
+          _isNativeLoading = false;
+          debugPrint('[AdManager] ✅ Global Native Ad Loaded');
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          _isNativeLoading = false;
+          _cachedNativeAd = null;
+          debugPrint('[AdManager] ❌ Global Native Ad Failed: $error');
+          Future.delayed(const Duration(seconds: 30), _loadPersistentNative);
+        },
+      ),
+    ).load();
+  }
+
+  // Tracking which ads are currently held by a widget to prevent "Already in tree" errors.
+  final Set<int> _activeAdHashes = {};
+
+  bool isAdAvailable(Ad ad) {
+    return !_activeAdHashes.contains(ad.hashCode);
+  }
+
+  void claimAd(Ad ad) {
+    _activeAdHashes.add(ad.hashCode);
+  }
+
+  void releaseAd(Ad ad) {
+    _activeAdHashes.remove(ad.hashCode);
+  }
+
   // ── Cleanup ───────────────────────────────────────────────────────────────
   void disposeAll() {
     _interstitialAd?.dispose();
     _interstitialAd = null;
+    
     _appOpenAd?.dispose();
     _appOpenAd = null;
+
+    _cachedBannerAd?.dispose();
+    _cachedBannerAd = null;
+
+    _cachedNativeAd?.dispose();
+    _cachedNativeAd = null;
+
+    _activeAdHashes.clear();
     _isShowing = false;
   }
 }

@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:image/image.dart' as img;
 import 'package:reducer/core/models/image_settings.dart';
 import 'package:reducer/core/theme/design_tokens.dart';
 import 'package:reducer/core/theme/app_theme.dart';
-import 'package:reducer/shared/presentation/widgets/custom_button.dart';
+import 'package:reducer/core/utils/target_dimension_calculator.dart';
+import 'package:reducer/shared/widgets/app_button.dart';
+
 import 'package:reducer/shared/presentation/widgets/ads/native_ad_widget.dart';
 
 class ExportTabContent extends StatefulWidget {
@@ -38,39 +39,12 @@ class ExportTabContent extends StatefulWidget {
 
 class _ExportTabContentState extends State<ExportTabContent> {
   bool _showBeforeImage = false;
-  int? _processedWidth;
-  int? _processedHeight;
 
-  @override
-  void initState() {
-    super.initState();
-    _decodeProcessedDimensions();
-  }
-
-  @override
-  void didUpdateWidget(ExportTabContent oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.processedImageBytes != oldWidget.processedImageBytes) {
-      _decodeProcessedDimensions();
-    }
-  }
-
-  void _decodeProcessedDimensions() {
-    if (widget.processedImageBytes == null) return;
-
-    // Quick decode of dimensions only
-    try {
-      final image = img.decodeImage(widget.processedImageBytes!);
-      if (image != null && mounted) {
-        setState(() {
-          _processedWidth = image.width;
-          _processedHeight = image.height;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error decoding processed dimensions: $e');
-    }
-  }
+  TargetDimensions get _selectedDimensions => TargetDimensions.fromScale(
+    originalWidth: widget.originalWidth,
+    originalHeight: widget.originalHeight,
+    scalePercent: widget.settings.scalePercent,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -82,11 +56,15 @@ class _ExportTabContentState extends State<ExportTabContent> {
             children: [
               Icon(Iconsax.info_circle, size: 64, color: Colors.grey),
               SizedBox(height: 16),
-              Text('No processed image yet',
-                  style: TextStyle(fontSize: 18, color: Colors.grey)),
+              Text(
+                'No processed image yet',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
               SizedBox(height: 8),
-              Text('Go to Settings tab and click "Process Image"',
-                  style: TextStyle(fontSize: 14, color: Colors.grey)),
+              Text(
+                'Go to Settings tab and click "Process Image"',
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
               SizedBox(height: 32),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0),
@@ -116,21 +94,27 @@ class _ExportTabContentState extends State<ExportTabContent> {
                           ? 'Before (Original)'
                           : 'After (Processed)',
                       style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     ElevatedButton.icon(
                       onPressed: () =>
                           setState(() => _showBeforeImage = !_showBeforeImage),
                       icon: Icon(
-                          _showBeforeImage ? Iconsax.eye : Iconsax.eye_slash,
-                          size: 18),
-                      label:
-                          Text(_showBeforeImage ? 'Show After' : 'Show Before'),
+                        _showBeforeImage ? Iconsax.eye : Iconsax.eye_slash,
+                        size: 18,
+                      ),
+                      label: Text(
+                        _showBeforeImage ? 'Show After' : 'Show Before',
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: DesignTokens.primaryBlue,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                       ),
                     ),
                   ],
@@ -152,10 +136,10 @@ class _ExportTabContentState extends State<ExportTabContent> {
                           child: Image.memory(
                             _showBeforeImage
                                 ? (widget.originalThumbnail ??
-                                    widget.previewThumbnail ??
-                                    widget.processedImageBytes!)
+                                      widget.previewThumbnail ??
+                                      widget.processedImageBytes!)
                                 : (widget.previewThumbnail ??
-                                    widget.processedImageBytes!),
+                                      widget.processedImageBytes!),
                             height: 300,
                             fit: BoxFit.contain,
                             cacheWidth: 800,
@@ -170,7 +154,9 @@ class _ExportTabContentState extends State<ExportTabContent> {
                         bottom: 10,
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black54,
                             borderRadius: BorderRadius.circular(20),
@@ -178,12 +164,19 @@ class _ExportTabContentState extends State<ExportTabContent> {
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Iconsax.finger_scan,
-                                  color: Colors.white, size: 14),
+                              Icon(
+                                Iconsax.finger_scan,
+                                color: Colors.white,
+                                size: 14,
+                              ),
                               SizedBox(width: 8),
-                              Text('Hold image to compare',
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 12)),
+                              Text(
+                                'Hold image to compare',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -191,9 +184,10 @@ class _ExportTabContentState extends State<ExportTabContent> {
                   ],
                 ),
                 const SizedBox(height: 5),
-                const Text('Ready to Export!',
-                    style:
-                        TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Ready to Export!',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 10),
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -206,20 +200,21 @@ class _ExportTabContentState extends State<ExportTabContent> {
                       _exportInfoRow('Format', widget.settings.format.name),
                       const SizedBox(height: 8),
                       _exportInfoRow(
-                          'Quality', '${widget.settings.quality.toInt()}%'),
+                        'Quality',
+                        '${widget.settings.quality.toInt()}%',
+                      ),
                       const SizedBox(height: 8),
                       _exportInfoRow(
                         'Resolution',
-                        _processedWidth != null && _processedHeight != null
-                            ? '$_processedWidth x $_processedHeight'
-                            : '${widget.originalWidth} x ${widget.originalHeight}',
+                        '${_selectedDimensions.width} x ${_selectedDimensions.height}',
                         valueColor: DesignTokens.primaryBlue,
                       ),
                       const SizedBox(height: 8),
                       _exportInfoRow(
                         'File Size',
                         _formatFileSize(widget.processedImageBytes!.length),
-                        valueColor: widget.processedImageBytes!.length <
+                        valueColor:
+                            widget.processedImageBytes!.length <
                                 widget.originalSize
                             ? Colors.green
                             : DesignTokens.primaryBlue,
@@ -243,19 +238,23 @@ class _ExportTabContentState extends State<ExportTabContent> {
           Row(
             children: [
               Expanded(
-                child: CustomButton(
+                child: AppButton(
                   label: 'Save to Gallery',
                   icon: Iconsax.save_2,
                   onPressed: widget.onSave,
+                  isFullWidth: true,
                 ),
+
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: CustomButton(
+                child: AppButton(
                   label: 'Share',
                   icon: Iconsax.share,
                   onPressed: widget.onShare,
+                  isFullWidth: true,
                 ),
+
               ),
             ],
           ),
@@ -269,8 +268,10 @@ class _ExportTabContentState extends State<ExportTabContent> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: const TextStyle(color: Colors.grey)),
-        Text(value,
-            style: TextStyle(fontWeight: FontWeight.bold, color: valueColor)),
+        Text(
+          value,
+          style: TextStyle(fontWeight: FontWeight.bold, color: valueColor),
+        ),
       ],
     );
   }

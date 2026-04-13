@@ -19,6 +19,7 @@ class ImageSettings {
   final bool flipVertical;
   final File? originalFile;
   final double? targetFileSizeKB; // Target file size in KB for compression
+  final bool isTargetUnitMb;
 
   ImageSettings({
     this.width,
@@ -32,6 +33,7 @@ class ImageSettings {
     this.flipVertical = false,
     this.originalFile,
     this.targetFileSizeKB,
+    this.isTargetUnitMb = true,
   });
 
   ImageSettings copyWith({
@@ -46,6 +48,7 @@ class ImageSettings {
     bool? flipVertical,
     File? originalFile,
     double? targetFileSizeKB,
+    bool? isTargetUnitMb,
   }) {
     return ImageSettings(
       width: width ?? this.width,
@@ -59,6 +62,7 @@ class ImageSettings {
       flipVertical: flipVertical ?? this.flipVertical,
       originalFile: originalFile ?? this.originalFile,
       targetFileSizeKB: targetFileSizeKB ?? this.targetFileSizeKB,
+      isTargetUnitMb: isTargetUnitMb ?? this.isTargetUnitMb,
     );
   }
 

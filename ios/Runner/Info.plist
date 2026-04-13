@@ -47,6 +47,14 @@
 	<true/>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-9155918242947466~4984600180</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to your gallery to pick images for processing.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs access to your gallery to save processed images.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to your camera to take new photos for processing.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This identifier will be used to deliver personalized ads to you.</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
@@ -60,6 +68,14 @@
 		<dict>
 			<key>SKAdNetworkIdentifier</key>
 			<string>2fnua5tdw4.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>ydx93a7ass.skadnetwork</string>
+		</dict>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>4pfyvq9l8r.skadnetwork</string>
 		</dict>
 	</array>
 </dict>

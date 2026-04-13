@@ -1,21 +1,24 @@
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
-import 'package:image/image.dart' as img;
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image/image.dart' as img;
 import 'package:path_provider/path_provider.dart';
 import 'package:reducer/core/models/image_settings.dart';
+import 'package:reducer/core/utils/target_dimension_calculator.dart';
 
-/// Result object for bulk processing updates
+/// Result object for bulk processing updates.
 class BulkProgress {
   final double progress;
   final List<File?> batchResults;
+
   BulkProgress(this.progress, this.batchResults);
 }
 
-/// High-performance image processor leveraging native compression
+/// High-performance image processor.
 class ImageProcessor {
-  
-  /// Process thumbnail for fast live preview
+  /// Process thumbnail for fast live preview.
   static Future<Uint8List?> processImageThumbnail(
     Uint8List inputBytes,
     ImageSettings settings, {
@@ -29,7 +32,7 @@ class ImageProcessor {
     }
   }
 
-  /// Process full-resolution image for final export
+  /// Process full-resolution image for final export.
   static Future<File?> processImage(
     File input,
     ImageSettings settings, {
@@ -38,7 +41,6 @@ class ImageProcessor {
     try {
       final bytes = await input.readAsBytes();
       final processedBytes = await _processNative(bytes, settings);
-
       if (processedBytes == null) return null;
 
       final tempDir = await getTemporaryDirectory();
@@ -46,7 +48,6 @@ class ImageProcessor {
         '${tempDir.path}/processed_${DateTime.now().millisecondsSinceEpoch}.${settings.format.extension}',
       );
       await outputFile.writeAsBytes(processedBytes);
-
       return outputFile;
     } catch (e) {
       debugPrint('Error processing image: $e');
@@ -54,7 +55,7 @@ class ImageProcessor {
     }
   }
 
-  /// Process image bytes directly
+  /// Process image bytes directly.
   static Future<Uint8List?> processImageBytes(
     Uint8List inputBytes,
     ImageSettings settings, {
@@ -68,7 +69,7 @@ class ImageProcessor {
     }
   }
 
-  /// Bulk processing with parallel execution and results yielding
+  /// Bulk processing with parallel execution and results yielding.
   static Stream<BulkProgress> processBulkWithProgress(
     List<File> inputs,
     ImageSettings settings, {
@@ -80,7 +81,7 @@ class ImageProcessor {
 
     for (int i = 0; i < inputs.length; i += maxConcurrent) {
       final batch = inputs.skip(i).take(maxConcurrent).toList();
-      
+
       final results = await Future.wait(
         batch.map((file) => processImage(file, settings, isPremium: isPremium)),
       );
@@ -90,127 +91,184 @@ class ImageProcessor {
     }
   }
 
-  /// Native processing core using flutter_image_compress
-  static Future<Uint8List?> _processNative(Uint8List bytes, ImageSettings settings) async {
+  static Future<Uint8List?> _processNative(
+    Uint8List bytes,
+    ImageSettings settings,
+  ) async {
     try {
-      // ── OPTIMIZATION: Decode image dimensions in background isolate ──────
-      final dimensions = await compute(_getImageDimensions, bytes);
+      final target = await compute(_calculateAndPrepareIsolate, _PrepareParams(
+        bytes: bytes,
+        settings: settings,
+      ));
+
+      if (target == null) return null;
+
+      if (settings.format == ImageFormat.bmp) {
+        return await compute(_encodeBmpInIsolate, target.preparedBytes);
+      }
+
+      final compressFormat = _toCompressFormat(settings.format);
       
-      if (dimensions == null) throw Exception('Failed to decode image dimensions');
-
-      // Guard extreme dimensions to avoid OOM
-      const int maxPixels = 40 * 1000 * 1000; // Raised to 40MP for modern devices
-      if (dimensions.width * dimensions.height > maxPixels) {
-        debugPrint('Image too large (${dimensions.width}x${dimensions.height}), skipping.');
-        return null;
+      // ── SMART ITERATIVE COMPRESSION ──────────────────────────────────────────
+      // If a target file size is specified, we perform binary search.
+      if (settings.targetFileSizeKB != null && settings.targetFileSizeKB! > 0) {
+        return await _iterativeCompress(
+          target.preparedBytes,
+          settings.targetFileSizeKB!,
+          target.width,
+          target.height,
+          compressFormat,
+        );
       }
 
-      // Calculate exact target dimensions matching the UI's rounding logic
-      final double scaleFactor = settings.scalePercent / 100.0;
-      int targetWidth = (dimensions.width * scaleFactor).toInt();
-      int targetHeight = (dimensions.height * scaleFactor).toInt();
-
-      // Ensure at least 1x1 dimensions
-      targetWidth = targetWidth.clamp(1, 10000);
-      targetHeight = targetHeight.clamp(1, 10000);
-
-      CompressFormat format;
-      switch (settings.format) {
-        case ImageFormat.png: format = CompressFormat.png; break;
-        case ImageFormat.webp: format = CompressFormat.webp; break;
-        default: format = CompressFormat.jpeg; break;
-      }
-
-      Uint8List? result = await FlutterImageCompress.compressWithList(
-        bytes,
-        minWidth: targetWidth,
-        minHeight: targetHeight,
-        quality: settings.quality.toInt(),
-        rotate: settings.rotation.toInt(),
-        format: format,
+      // Standard single-pass compression if no target size is set
+      return await FlutterImageCompress.compressWithList(
+        target.preparedBytes,
+        minWidth: target.width,
+        minHeight: target.height,
+        quality: settings.quality.toInt().clamp(1, 100),
+        format: compressFormat,
       );
-      // Handle flipping if required
-      if (settings.flipHorizontal || settings.flipVertical) {
-        result = await compute(_handleFlipInIsolate, _FlipParams(
-          bytes: result,
-          flipH: settings.flipHorizontal,
-          flipV: settings.flipVertical,
-          format: settings.format,
-          targetWidth: targetWidth,
-          targetHeight: targetHeight,
-        ));
-      }
-
-      return result;
     } catch (e, stack) {
       debugPrint('Exception in _processNative: $e');
       debugPrint(stack.toString());
       return null;
     }
   }
-}
 
-/// Helper DTO for dimensions
-class _ImageDimensions {
-  final int width;
-  final int height;
-  _ImageDimensions(this.width, this.height);
-}
+  /// Uses binary search and upscaling to find/force a target file size.
+  static Future<Uint8List?> _iterativeCompress(
+    Uint8List bytes,
+    double targetSizeKB,
+    int width,
+    int height,
+    CompressFormat format,
+  ) async {
+    int low = 5;
+    int high = 100;
+    Uint8List? bestResult;
+    
+    // Check if the target is significantly LARGER than current image could possibly be
+    // at original resolution. If so, we upscale the source bytes first.
+    final targetBytesCount = (targetSizeKB * 1024).round();
+    
+    // Preliminary check at high quality
+    var testResult = await FlutterImageCompress.compressWithList(
+      bytes,
+      minWidth: width,
+      minHeight: height,
+      quality: 95,
+      format: format,
+    );
+    
+    // ── STEP 1: UPSCALING (If target is vastly larger) ───────────────────────
+    // If target is > 3x current max quality size, we upscale the image resolution.
+    if (targetBytesCount > testResult.length * 3) {
+      final upscaleFactor = (targetBytesCount / testResult.length).clamp(1.0, 4.0);
+      width = (width * upscaleFactor).round();
+      height = (height * upscaleFactor).round();
+    }
 
-/// Top-level function for [compute] to decode dimensions off-main-thread
-_ImageDimensions? _getImageDimensions(Uint8List bytes) {
-  // ── OPTIMIZATION: Use img.decodeImage(bytes) only if necessary ───────────
-  // Using img.Command() or just looking at headers is faster,
-  // but for broad compatibility with minimal code change, we use img.decodeImage
-  // but we can also use img.decodeJpg, decodePng, etc. based on first bytes.
-  
-  final info = img.decodeImage(bytes);
-  if (info == null) return null;
-  return _ImageDimensions(info.width, info.height);
-}
+    // ── STEP 2: BINARY SEARCH QUALITY ────────────────────────────────────────
+    for (int i = 0; i < 8; i++) {
+      if (low > high) break;
+      
+      int mid = (low + high) ~/ 2;
+      final result = await FlutterImageCompress.compressWithList(
+        bytes,
+        minWidth: width,
+        minHeight: height,
+        quality: mid,
+        format: format,
+      );
 
-/// Helper for flipping images in a background isolate.
-/// Must be a top-level function for [compute].
-Uint8List _handleFlipInIsolate(_FlipParams params) {
-  var image = img.decodeImage(params.bytes);
-  if (image == null) return params.bytes;
+      final currentBytes = result.length;
+      debugPrint('Iteration $i: Quality=$mid, Size=${(currentBytes/1024).toStringAsFixed(2)}KB, Target=${targetSizeKB}KB');
 
-  // Strict resizing to ensure the dimension matches the UI exactly after flip
-  if (params.targetWidth != null && params.targetHeight != null) {
-    if (image.width != params.targetWidth || image.height != params.targetHeight) {
-      image = img.copyResize(image, width: params.targetWidth, height: params.targetHeight);
+      if (currentBytes <= targetBytesCount) {
+        bestResult = result;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+        bestResult ??= result;
+      }
+    }
+    
+    // ── STEP 3: STRICT PADDING (To reach EXACT "Same to Same" byte count) ────
+    // If we're still under the target, append null bytes.
+    if (bestResult != null && bestResult.length < targetBytesCount) {
+      final diff = targetBytesCount - bestResult.length;
+      final padding = Uint8List(diff); // Filled with 0x00 by default
+      final output = BytesBuilder(copy: false)
+        ..add(bestResult)
+        ..add(padding);
+      
+      final finalResult = output.toBytes();
+      debugPrint('Strict Size Met: Final size ${finalResult.length} bytes (Target $targetBytesCount)');
+      return finalResult;
+    }
+    
+    return bestResult;
+  }
+
+  static CompressFormat _toCompressFormat(ImageFormat format) {
+    switch (format) {
+      case ImageFormat.png: return CompressFormat.png;
+      case ImageFormat.webp: return CompressFormat.webp;
+      default: return CompressFormat.jpeg;
     }
   }
-
-  if (params.flipH) image = img.flipHorizontal(image);
-  if (params.flipV) image = img.flipVertical(image);
-
-  // Use the correct encoder based on the requested format
-  switch (params.format) {
-    case ImageFormat.png:
-      return Uint8List.fromList(img.encodePng(image));
-    case ImageFormat.webp:
-      return Uint8List.fromList(img.encodePng(image)); // Best quality fallback
-    default:
-      return Uint8List.fromList(img.encodeJpg(image, quality: 95));
-  }
 }
 
-/// Parameters for the flipping isolate.
-class _FlipParams {
-  final Uint8List bytes;
-  final bool flipH;
-  final bool flipV;
-  final ImageFormat format;
-  final int? targetWidth;
-  final int? targetHeight;
+class _PreparedResult {
+  final Uint8List preparedBytes;
+  final int width;
+  final int height;
 
-  _FlipParams({
-    required this.bytes,
-    required this.flipH,
-    required this.flipV,
-    required this.format,
-    this.targetWidth,
-    this.targetHeight,
-  });
+  _PreparedResult(this.preparedBytes, this.width, this.height);
+}
+
+class _PrepareParams {
+  final Uint8List bytes;
+  final ImageSettings settings;
+
+  _PrepareParams({required this.bytes, required this.settings});
+}
+
+_PreparedResult? _calculateAndPrepareIsolate(_PrepareParams params) {
+  var image = img.decodeImage(params.bytes);
+  if (image == null) return null;
+
+  final targetDim = TargetDimensions.fromScale(
+    originalWidth: image.width,
+    originalHeight: image.height,
+    scalePercent: params.settings.scalePercent,
+  );
+
+  // Apply transformations
+  if (image.width != targetDim.width || image.height != targetDim.height) {
+    image = img.copyResize(image, width: targetDim.width, height: targetDim.height);
+  }
+
+  if (params.settings.rotation % 360 != 0) {
+    image = img.copyRotate(image, angle: params.settings.rotation.toInt());
+  }
+
+  if (params.settings.flipHorizontal) image = img.flipHorizontal(image);
+  if (params.settings.flipVertical) image = img.flipVertical(image);
+
+  // Final check to ensure dimensions are exactly as requested after rotation
+  if (image.width != targetDim.width || image.height != targetDim.height) {
+    image = img.copyResize(image, width: targetDim.width, height: targetDim.height);
+  }
+
+  // Using 100% quality JPG as an intermediary is significantly faster than PNG 
+  // in the pure-Dart image library.
+  final preparedBytes = Uint8List.fromList(img.encodeJpg(image, quality: 100));
+  return _PreparedResult(preparedBytes, image.width, image.height);
+}
+
+Uint8List _encodeBmpInIsolate(Uint8List bytes) {
+  final image = img.decodeImage(bytes);
+  return image != null ? Uint8List.fromList(img.encodeBmp(image)) : bytes;
 }

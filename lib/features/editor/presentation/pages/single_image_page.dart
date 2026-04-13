@@ -1,33 +1,28 @@
-import 'dart:io';
-import 'dart:async';
-import 'dart:typed_data';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:gal/gal.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:uuid/uuid.dart';
-import 'package:reducer/core/theme/design_tokens.dart';
-import 'package:reducer/core/models/image_settings.dart';
-import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
-import 'package:reducer/features/gallery/presentation/controllers/history_controller.dart';
 import 'package:reducer/features/gallery/data/models/history_item.dart';
-import 'package:reducer/core/utils/image_processor.dart';
+import 'package:reducer/features/gallery/presentation/controllers/history_controller.dart';
+import 'package:reducer/features/editor/presentation/controllers/single_image_controller.dart';
+import 'package:reducer/features/editor/presentation/widgets/compress_tab_view.dart';
+import 'package:reducer/features/editor/presentation/widgets/resize_tab_view.dart';
+import 'package:reducer/features/editor/presentation/widgets/format_tab_view.dart';
+import 'package:reducer/features/editor/presentation/widgets/export_tab_view.dart';
+import 'package:reducer/core/models/image_settings.dart';
+import 'package:reducer/core/theme/app_colors.dart';
+import 'package:reducer/core/theme/app_spacing.dart';
+import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:reducer/core/services/permission_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:uuid/uuid.dart';
+import 'package:path/path.dart' as p;
+import 'package:reducer/core/ads/ad_manager.dart';
 import 'package:reducer/shared/presentation/widgets/ads/banner_ad_widget.dart';
 import 'package:reducer/shared/presentation/widgets/ads/native_ad_widget.dart';
-import 'package:reducer/core/utils/image_validator.dart';
-import 'package:reducer/core/utils/thumbnail_generator.dart';
-import 'package:reducer/core/utils/debouncer.dart';
-import 'package:reducer/core/ads/ad_manager.dart';
-import 'package:reducer/core/services/permission_service.dart';
-import 'package:reducer/features/editor/presentation/widgets/upload_tab_content.dart';
-import 'package:reducer/features/editor/presentation/widgets/export_tab_content.dart';
-import 'package:reducer/features/editor/presentation/widgets/editor_settings_panel.dart';
-
 
 class SingleImageScreen extends ConsumerStatefulWidget {
   const SingleImageScreen({super.key});
@@ -39,444 +34,352 @@ class SingleImageScreen extends ConsumerStatefulWidget {
 class _SingleImageScreenState extends ConsumerState<SingleImageScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
-  File? _selectedFile;
-  Uint8List? _selectedImageBytes;
-
-  Uint8List? _originalThumbnail;
-  Uint8List? _previewThumbnail;
-
-  Uint8List? _processedImageBytes;
-
-  ImageSettings _settings = ImageSettings();
-
-  bool _isGeneratingThumbnail = false;
-  bool _isProcessingPreview = false;
-  bool _isProcessingFinal = false;
-
-  final Debouncer _previewDebouncer =
-      Debouncer(delay: const Duration(milliseconds: 250));
-
-  bool _cancelled = false;
-  int _originalSize = 0;
-  int _originalWidth = 0;
-  int _originalHeight = 0;
+  bool _showOriginal = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(_onTabChanged);
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
-    _cancelled = true;
-    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
-    _previewDebouncer.dispose();
     super.dispose();
   }
 
-  void _onTabChanged() {
-    if (!_tabController.indexIsChanging && mounted) {
-      setState(() {});
-    }
-  }
-
-  Future<void> _pickImage([ImageSource source = ImageSource.gallery]) async {
-    final bool ok;
-    if (source == ImageSource.camera) {
-      if (!mounted) return;
-      ok = await PermissionService.instance.ensureCameraPermission(context);
-    } else {
-      if (!mounted) return;
-      ok = await PermissionService.instance.ensurePhotosPermission(context);
-    }
-    if (!ok || !mounted) return;
-
-    final picker = ImagePicker();
-    XFile? pickedFile;
-    try {
-      pickedFile = await picker.pickImage(source: source);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(
-                  'Unable to open ${source == ImageSource.camera ? "camera" : "photos"}: $e')),
-        );
-      }
-      return;
-    }
-
-    if (pickedFile == null || !mounted) return;
-
-    setState(() {
-      _isGeneratingThumbnail = true;
-      _originalThumbnail = null;
-      _previewThumbnail = null;
-      _processedImageBytes = null;
+  Future<void> _handleProcess() async {
+    await AdManager().showInterstitialAd(onComplete: () async {
+      await ref.read(singleImageControllerProvider.notifier).processFinalImage();
+      if (mounted) _tabController.animateTo(3);
     });
-
-    try {
-      if (!kIsWeb) {
-        _selectedFile = File(pickedFile.path);
-        if (!_selectedFile!.existsSync()) {
-          throw Exception('Captured file missing');
-        }
-      }
-
-      final bytes = await pickedFile.readAsBytes();
-      if (!mounted || _cancelled) return;
-
-      _selectedImageBytes = bytes;
-
-      final validationResult = ImageValidator.validateImage(_selectedImageBytes!);
-      if (!validationResult.isValid) {
-        if (mounted) {
-          ImageValidator.showValidationDialog(context, validationResult);
-        }
-        return;
-      }
-      if (validationResult.hasWarning && mounted) {
-        ImageValidator.showValidationDialog(context, validationResult);
-      }
-
-      // Evict previous images from cache to free memory
-      PaintingBinding.instance.imageCache.clear();
-      PaintingBinding.instance.imageCache.clearLiveImages();
-
-      final thumbnail = await ThumbnailGenerator.generateThumbnailFromXFile(
-        pickedFile,
-        maxWidth: 1000,
-        quality: 70,
-      );
-
-      if (!mounted || _cancelled) return;
-
-      if (thumbnail != null) {
-        setState(() {
-          _originalThumbnail = thumbnail;
-          _previewThumbnail = thumbnail;
-          _settings = _settings.copyWith(originalFile: _selectedFile);
-          _originalSize = bytes.length;
-          _originalWidth = validationResult.width ?? 0;
-          _originalHeight = validationResult.height ?? 0;
-          _selectedImageBytes = null; // Free up bytes memory if possible
-          _isGeneratingThumbnail = false;
-          _tabController.animateTo(1);
-        });
-        _regeneratePreview();
-      } else {
-        throw Exception('Failed to generate thumbnail');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isGeneratingThumbnail = false;
-        _selectedImageBytes = null;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading image: $e')),
-      );
-    }
-  }
-
-  Future<void> _regeneratePreview() async {
-    if (_originalThumbnail == null || !mounted || _cancelled) return;
-
-    setState(() => _isProcessingPreview = true);
-
-    try {
-      final isPro = ref.read(premiumControllerProvider).isPro;
-      final result = await ImageProcessor.processImageThumbnail(
-        _originalThumbnail!,
-        _settings,
-        isPremium: isPro,
-      );
-
-      if (!mounted || _cancelled) return;
-
-      setState(() {
-        _previewThumbnail = result ?? _previewThumbnail;
-        _isProcessingPreview = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isProcessingPreview = false);
-      debugPrint('Error regenerating preview: $e');
-    }
-  }
-
-  Future<void> _processFinalImage() async {
-    if (_selectedFile == null && _selectedImageBytes == null) {
-      if (_selectedFile != null && !kIsWeb) {
-        // reload logic if needed
-      } else {
-        return;
-      }
-    }
-    if (!mounted) return;
-
-    setState(() => _isProcessingFinal = true);
-
-    try {
-      final isPro = ref.read(premiumControllerProvider).isPro;
-      Uint8List? result;
-
-      if (_selectedImageBytes != null) {
-        result = await ImageProcessor.processImageBytes(
-          _selectedImageBytes!,
-          _settings,
-          isPremium: isPro,
-        );
-      } else if (_selectedFile != null) {
-        final fileResult = await ImageProcessor.processImage(
-          _selectedFile!,
-          _settings,
-          isPremium: isPro,
-        );
-        result = await fileResult?.readAsBytes();
-      }
-
-      if (!mounted || _cancelled) return;
-
-      if (result != null) {
-        setState(() {
-          _processedImageBytes = result;
-          _isProcessingFinal = false;
-          _tabController.animateTo(2);
-        });
-      } else {
-        setState(() => _isProcessingFinal = false);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isProcessingFinal = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error processing image: $e')),
-      );
-    }
-  }
-
-  void _onSettingChanged(ImageSettings newSettings) {
-    if (!mounted) return;
-    setState(() => _settings = newSettings);
-    _previewDebouncer.call(_regeneratePreview);
-  }
-
-  Future<void> _saveToGallery() async {
-    final processedBytes = _processedImageBytes;
-    final previewBytes = _previewThumbnail ?? _originalThumbnail;
-
-    if (processedBytes == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No processed image to save')),
-      );
-      return;
-    }
-    if (previewBytes == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('No preview available to save in history')),
-      );
-      return;
-    }
-
-    try {
-      final ok = await PermissionService.instance.ensurePhotosPermission(context);
-      if (!ok) return;
-
-      final timestamp = DateTime.now();
-      final timestampMs = timestamp.millisecondsSinceEpoch;
-      final tempDir = await getTemporaryDirectory();
-      final fileName = 'imagemaster_$timestampMs.${_settings.format.extension}';
-      final file = File('${tempDir.path}/$fileName');
-
-      final appDir = await getApplicationDocumentsDirectory();
-      final historyDir = Directory(p.join(appDir.path, 'history'));
-      if (!await historyDir.exists()) {
-        await historyDir.create(recursive: true);
-      }
-
-      final thumbRelativePath = 'history/thumb_$timestampMs.jpg';
-      final thumbFile = File(p.join(appDir.path, thumbRelativePath));
-
-      await Future.wait([
-        file.writeAsBytes(processedBytes),
-        thumbFile.writeAsBytes(previewBytes),
-      ]);
-
-      if (!mounted || _cancelled) return;
-
-      await Gal.putImage(file.path, album: 'ImageMaster Pro');
-
-      if (!mounted) return;
-
-      final historyItem = HistoryItem(
-        id: const Uuid().v4(),
-        thumbnailPath: thumbRelativePath,
-        originalPath: _selectedFile?.path ?? '',
-        settings: _settings,
-        timestamp: timestamp,
-        originalSize: _originalSize,
-        processedSize: processedBytes.length,
-      );
-      final historyController = await ref.readHistoryControllerReady();
-      await historyController.addItem(historyItem);
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('✓ Saved to Gallery!'),
-            ],
-          ),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Failed to save: $e'), backgroundColor: Colors.red),
-      );
-    }
-  }
-
-  Future<void> _shareImage() async {
-    if (_processedImageBytes == null) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No processed image to share')),
-      );
-      return;
-    }
-
-    try {
-      final tempDir = await getTemporaryDirectory();
-      final fileName =
-          'imagemaster_share_${DateTime.now().millisecondsSinceEpoch}.${_settings.format.extension}';
-      final file = File('${tempDir.path}/$fileName');
-      await file.writeAsBytes(_processedImageBytes!);
-
-      if (!mounted || _cancelled) return;
-
-      await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          text: 'Processed with ImageMaster Pro',
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Failed to share: $e'), backgroundColor: Colors.red),
-      );
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final showBanner = _tabController.index == 0;
+    final state = ref.watch(singleImageControllerProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (state.originalThumbnail == null) {
+      return _buildEmptyState();
+    }
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Image Editor'),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: DesignTokens.primaryBlue,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: DesignTokens.primaryBlue,
-          tabs: const [
-            Tab(text: 'Upload', icon: Icon(Iconsax.document_upload)),
-            Tab(text: 'Edit & Preview', icon: Icon(Iconsax.setting_2)),
-            Tab(text: 'Export', icon: Icon(Iconsax.export)),
+      backgroundColor: isDark ? AppColors.darkBackground : Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Top Banner Ad
+            const BannerAdWidget(),
+
+            // Header Preview
+            _buildPreviewHeader(state),
+
+            // Custom TabBar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+              child: Container(
+                height: 52,
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF252525) : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(26),
+                ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicator: BoxDecoration(
+                    borderRadius: BorderRadius.circular(22),
+                    color: isDark ? const Color(0xFF323232) : Colors.white,
+                    border: Border.all(
+                      color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
+                    ),
+                    boxShadow: [
+                      if (!isDark)
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                    ],
+                  ),
+                  indicatorSize: TabBarIndicatorSize.tab,
+                  labelColor: isDark ? Colors.white : AppColors.primary,
+                  unselectedLabelColor: isDark ? Colors.white38 : Colors.grey,
+                  dividerColor: Colors.transparent,
+                  labelPadding: EdgeInsets.zero,
+                  labelStyle: AppTextStyles.labelMedium(context).copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                  unselectedLabelStyle: AppTextStyles.labelMedium(context).copyWith(
+                    fontWeight: FontWeight.normal,
+                  ),
+                  tabs: const [
+                    Tab(text: 'Compress'),
+                    Tab(text: 'Resize'),
+                    Tab(text: 'Format'),
+                    Tab(text: 'Export'),
+                  ],
+                ),
+              ),
+            ),
+
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  CompressTabView(
+                    settings: state.settings,
+                    onSettingsChanged: (s) => ref.read(singleImageControllerProvider.notifier).updateSettings(s),
+                  ),
+                  ResizeTabView(
+                    settings: state.settings,
+                    originalWidth: state.originalWidth,
+                    originalHeight: state.originalHeight,
+                    onSettingsChanged: (s) => ref.read(singleImageControllerProvider.notifier).updateSettings(s),
+                  ),
+                  FormatTabView(
+                    settings: state.settings,
+                    onSettingsChanged: (s) => ref.read(singleImageControllerProvider.notifier).updateSettings(s),
+                  ),
+                  ExportTabView(
+                    processedImageBytes: state.processedImageBytes,
+                    settings: state.settings,
+                    originalSize: state.originalSize,
+                    originalWidth: state.originalWidth,
+                    originalHeight: state.originalHeight,
+                    onSave: () => _saveToGallery(state),
+                    onShare: () => _shareImage(state),
+                  ),
+                ],
+              ),
+            ),
+
+            // Process Button (Persistent across first 3 tabs)
+            if (_tabController.index < 3)
+              Padding(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: state.isProcessingFinal ? null : _handleProcess,
+                    icon: const Icon(Iconsax.flash),
+                    label: Text(state.isProcessingFinal ? 'Processing...' : 'Process Image'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
-      body: Column(
+    );
+  }
+
+  Widget _buildPreviewHeader(SingleImageState state) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final displayImage = _showOriginal ? state.originalThumbnail! : (state.previewThumbnail ?? state.originalThumbnail!);
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurfaceVariant : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+      ),
+      child: Column(
         children: [
-          if (showBanner) const BannerAdWidget(),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                UploadTabContent(
-                  isGeneratingThumbnail: _isGeneratingThumbnail,
-                  originalThumbnail: _originalThumbnail,
-                  originalSize: _originalSize,
-                  onPickImage: (source) => AdManager().showInterstitialAd(
-                    onComplete: () => _pickImage(source),
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.memory(
+                  displayImage,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: () => setState(() => _showOriginal = !_showOriginal),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black87,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _showOriginal ? AppColors.primary : Colors.white24),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.circle, size: 8, color: _showOriginal ? Colors.orange : Colors.indigoAccent),
+                        const SizedBox(width: 6),
+                        Text(
+                          _showOriginal ? 'Show After' : 'Show Before', 
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                _buildSettingsTab(),
-                ExportTabContent(
-                  processedImageBytes: _processedImageBytes,
-                  originalThumbnail: _originalThumbnail,
-                  previewThumbnail: _previewThumbnail,
-                  settings: _settings,
-                  originalSize: _originalSize,
-                  originalWidth: _originalWidth,
-                  originalHeight: _originalHeight,
-                  onSave: _saveToGallery,
-                  onShare: _shareImage,
-                ),
-              ],
-            ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '${state.originalWidth} × ${state.originalHeight} · ${_formatFileSize(state.originalSize)}',
+            style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSettingsTab() {
-    if (_originalThumbnail == null) return _buildEmptyState();
-
-    return EditorSettingsPanel(
-      settings: _settings,
-      previewThumbnail: _previewThumbnail,
-      isProcessingPreview: _isProcessingPreview,
-      isProcessingFinal: _isProcessingFinal,
-      originalSize: _originalSize,
-      originalWidth: _originalWidth,
-      originalHeight: _originalHeight,
-      isPro: ref.watch(premiumControllerProvider).isPro,
-      onSettingChanged: _onSettingChanged,
-      onProcessRequested: () => AdManager().showInterstitialAd(
-        onComplete: _processFinalImage,
-      ),
-    );
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   Widget _buildEmptyState() {
-    return const Center(
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Iconsax.image, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('Please upload an image first',
-                style: TextStyle(color: Colors.grey)),
-            SizedBox(height: 32),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.0),
-              child: NativeAdWidget(size: NativeAdSize.medium),
-            ),
-          ],
+     return Scaffold(
+       body: SafeArea(
+         child: SingleChildScrollView(
+           padding: const EdgeInsets.all(AppSpacing.xl),
+           child: Column(
+             mainAxisAlignment: MainAxisAlignment.center,
+             children: [
+               const BannerAdWidget(),
+               const SizedBox(height: 40),
+               const Icon(Iconsax.image, size: 64, color: AppColors.primary),
+               const SizedBox(height: 16),
+               Text(
+                 'Pick an image to start',
+                 style: AppTextStyles.titleLarge(context).copyWith(fontWeight: FontWeight.bold),
+               ),
+               const SizedBox(height: 8),
+               const Text('Choose from your gallery or take a new photo', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+               const SizedBox(height: 32),
+               Row(
+                 children: [
+                   Expanded(
+                     child: ElevatedButton.icon(
+                       onPressed: () => ref.read(singleImageControllerProvider.notifier).pickImage(ImageSource.gallery),
+                       icon: const Icon(Iconsax.gallery),
+                       label: const Text('Gallery'),
+                       style: ElevatedButton.styleFrom(
+                         padding: const EdgeInsets.symmetric(vertical: 16),
+                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                       ),
+                     ),
+                   ),
+                   const SizedBox(width: 16),
+                   Expanded(
+                     child: OutlinedButton.icon(
+                       onPressed: () => ref.read(singleImageControllerProvider.notifier).pickImage(ImageSource.camera),
+                       icon: const Icon(Iconsax.camera),
+                       label: const Text('Camera'),
+                       style: OutlinedButton.styleFrom(
+                         padding: const EdgeInsets.symmetric(vertical: 16),
+                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                       ),
+                     ),
+                   ),
+                 ],
+               ),
+               const SizedBox(height: 40),
+               const NativeAdWidget(size: NativeAdSize.medium),
+             ],
+           ),
+         ),
+       ),
+     );
+  }
+
+  Future<void> _saveToGallery(SingleImageState state) async {
+    final processedBytes = state.processedImageBytes;
+    final previewBytes = state.previewThumbnail ?? state.originalThumbnail;
+    if (processedBytes == null || previewBytes == null || !mounted) return;
+
+    // Trigger Interstitial Ad before save
+    await AdManager().showInterstitialAd(onComplete: () async {
+      try {
+        if (!mounted) return;
+        final ok = await PermissionService.instance.ensurePhotosPermission(context);
+        if (!ok) return;
+
+        final timestampMs = DateTime.now().millisecondsSinceEpoch;
+        final tempDir = await getTemporaryDirectory();
+        final file = File('${tempDir.path}/img_$timestampMs.${state.settings.format.extension}');
+        
+        final appDir = await getApplicationDocumentsDirectory();
+        final thumbRelativePath = 'history/thumb_$timestampMs.jpg';
+        final thumbFile = File(p.join(appDir.path, thumbRelativePath));
+
+        await Directory(p.dirname(thumbFile.path)).create(recursive: true);
+        await file.writeAsBytes(processedBytes);
+        await thumbFile.writeAsBytes(previewBytes);
+
+        await Gal.putImage(file.path, album: 'ImageMaster Pro');
+
+        final historyItem = HistoryItem(
+          id: const Uuid().v4(),
+          thumbnailPath: thumbRelativePath,
+          originalPath: state.originalFile?.path ?? '',
+          settings: state.settings,
+          timestamp: DateTime.now(),
+          originalSize: state.originalSize,
+          processedSize: processedBytes.length,
+        );
+        
+        await ref.read(historyControllerProvider.notifier).addItem(historyItem);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✓ Saved to Gallery!'), backgroundColor: Colors.green),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to save: $e'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    });
+  }
+
+  Future<void> _shareImage(SingleImageState state) async {
+    if (state.processedImageBytes == null || !mounted) return;
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/share_${DateTime.now().millisecondsSinceEpoch}.${state.settings.format.extension}');
+      await file.writeAsBytes(state.processedImageBytes!);
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)], 
+          text: 'Processed with ImageMaster Pro',
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to share: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 }
-
-

@@ -35,22 +35,12 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(userProvider);
+    final authState = ref.watch(authProvider).value;
+    final isLoggedIn = authState != null && !authState.isAnonymous;
     final isLoading = ref.watch(authControllerProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Profile', style: TextStyle(fontWeight: FontWeight.bold)),
-        actions: [
-          IconButton(
-            icon: const Icon(Iconsax.logout),
-            onPressed: () async {
-              await ref.read(authControllerProvider.notifier).logout();
-              if (context.mounted) context.go('/login');
-            },
-          ),
-        ],
-      ),
       body: userAsync.when(
         data: (user) {
           if (user == null) {
@@ -63,7 +53,9 @@ class ProfileScreen extends ConsumerWidget {
                   const Text('Please login to see your profile'),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: () => context.go('/login'),
+                    onPressed: () => context.go(
+                      '/login?redirect=${Uri.encodeComponent('/profile')}',
+                    ),
                     child: const Text('Login'),
                   ),
                 ],
@@ -176,7 +168,7 @@ class ProfileScreen extends ConsumerWidget {
                 
                 if (user.subscriptionStatus != 'premium')
                 ElevatedButton.icon(
-                  onPressed: () => context.push('/premium'),
+                  onPressed: () => context.go('/premium'),
                   icon: const Icon(Iconsax.crown),
                   label: const Text('Upgrade to Pro'),
                   style: ElevatedButton.styleFrom(
@@ -185,6 +177,20 @@ class ProfileScreen extends ConsumerWidget {
                     foregroundColor: Colors.black,
                   ),
                 ),
+
+                if (isLoggedIn) ...[
+                   const SizedBox(height: 20),
+                   OutlinedButton.icon(
+                    onPressed: isLoading ? null : () => ref.read(authControllerProvider.notifier).logout(),
+                    icon: const Icon(Iconsax.logout),
+                    label: const Text('Logout'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                    ),
+                  ),
+                ],
               ],
             ),
           );

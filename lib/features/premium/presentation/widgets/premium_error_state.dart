@@ -4,7 +4,8 @@ import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
-import 'package:reducer/features/premium/presentation/widgets/app_button.dart';
+import 'package:reducer/shared/widgets/app_button.dart';
+
 
 class PremiumErrorState extends ConsumerWidget {
   final String error;
