@@ -41,7 +41,10 @@ class _SingleImageScreenState extends ConsumerState<SingleImageScreen>
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
-      if (mounted) setState(() {});
+      if (!_tabController.indexIsChanging && mounted) {
+        // Targeted state update instead of full screen setState
+        ref.read(singleImageTabIndexProvider.notifier).state = _tabController.index;
+      }
     });
   }
 
@@ -159,24 +162,32 @@ class _SingleImageScreenState extends ConsumerState<SingleImageScreen>
             ),
 
             // Process Button (Persistent across first 3 tabs)
-            if (_tabController.index < 3)
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: state.isProcessingFinal ? null : _handleProcess,
-                    icon: const Icon(Iconsax.flash),
-                    label: Text(state.isProcessingFinal ? 'Processing...' : 'Process Image'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            Consumer(
+              builder: (context, ref, child) {
+                final tabIndex = ref.watch(singleImageTabIndexProvider);
+                if (tabIndex >= 3) return const SizedBox.shrink();
+                
+                final isProcessing = ref.watch(singleImageControllerProvider.select((s) => s.isProcessingFinal));
+                
+                return Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: isProcessing ? null : _handleProcess,
+                      icon: const Icon(Iconsax.flash),
+                      label: Text(isProcessing ? 'Processing...' : 'Process Image'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -207,6 +218,8 @@ class _SingleImageScreenState extends ConsumerState<SingleImageScreen>
                   height: 180,
                   width: double.infinity,
                   fit: BoxFit.contain,
+                  // Optimization: Downsample to actual display dimensions to save memory
+                  cacheHeight: 360, 
                 ),
               ),
               Positioned(
@@ -321,22 +334,24 @@ class _SingleImageScreenState extends ConsumerState<SingleImageScreen>
         if (!ok) return;
 
         final timestampMs = DateTime.now().millisecondsSinceEpoch;
-        final tempDir = await getTemporaryDirectory();
-        final file = File('${tempDir.path}/img_$timestampMs.${state.settings.format.extension}');
         
         final appDir = await getApplicationDocumentsDirectory();
         final thumbRelativePath = 'history/thumb_$timestampMs.jpg';
+        final processedRelativePath = 'history/proc_$timestampMs.${state.settings.format.extension}';
+        
         final thumbFile = File(p.join(appDir.path, thumbRelativePath));
+        final procFile = File(p.join(appDir.path, processedRelativePath));
 
         await Directory(p.dirname(thumbFile.path)).create(recursive: true);
-        await file.writeAsBytes(processedBytes);
+        await procFile.writeAsBytes(processedBytes);
         await thumbFile.writeAsBytes(previewBytes);
 
-        await Gal.putImage(file.path, album: 'ImageMaster Pro');
+        await Gal.putImage(procFile.path, album: 'Reducer');
 
         final historyItem = HistoryItem(
           id: const Uuid().v4(),
           thumbnailPath: thumbRelativePath,
+          processedPaths: [processedRelativePath],
           originalPath: state.originalFile?.path ?? '',
           settings: state.settings,
           timestamp: DateTime.now(),
@@ -371,7 +386,7 @@ class _SingleImageScreenState extends ConsumerState<SingleImageScreen>
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path)], 
-          text: 'Processed with ImageMaster Pro',
+          text: 'Processed with Reducer',
         ),
       );
     } catch (e) {

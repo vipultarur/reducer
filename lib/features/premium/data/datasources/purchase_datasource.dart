@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -13,6 +15,7 @@ import 'package:reducer/features/premium/domain/models/premium_plan.dart';
 
 import 'package:reducer/core/config/app_config.dart';
 import 'package:reducer/features/auth/presentation/providers/auth_providers.dart';
+import 'package:reducer/core/services/notification_service.dart';
 
 // ─── Keys for SecureStorage ─────────────────────────────────────────────────
 const String _kSecIsPro = 'is_pro_user';
@@ -108,9 +111,19 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
 
   // ── Secure Pro Status ───────────────────────────────────────────────────
 
+  /// Generates a cryptographically secure integrity hash based on user data
+  String _generateIntegrityHash(String uid) {
+    // 2026 Production Standard: HMAC-SHA256 with a project-specific salt
+    final key = utf8.encode('reducer_secure_salt_v1_2026_premium_hardening');
+    final bytes = utf8.encode(uid);
+    final hmac = Hmac(sha256, key);
+    return hmac.convert(bytes).toString();
+  }
+
   Future<void> _checkProStatusLocally() async {
-    if (!_hasEligiblePremiumAccount) {
-      AdManager.isPremium = false;
+    final user = _currentUser;
+    if (user == null || user.isAnonymous) {
+      AdManager.updatePremiumStatus(false);
       if (!mounted) return;
       state = state.copyWith(isPro: false);
       return;
@@ -118,6 +131,16 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
 
     final String? isProStr = await _secureStorage.read(key: _kSecIsPro);
     final isPro = isProStr == 'true';
+
+    // Verify Integrity Hash to prevent storage editing
+    final String? storedHash = await _secureStorage.read(key: 'pro_integrity_v1');
+    final expectedHash = _generateIntegrityHash(user.uid);
+
+    if (isPro && storedHash != expectedHash) {
+      debugPrint('[Security] ⚠️ Local Pro status integrity check FAILED. Resetting.');
+      await clearProStatus();
+      return;
+    }
 
     if (isPro) {
       final String? lastVerifiedMsStr = await _secureStorage.read(
@@ -130,27 +153,38 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
 
       if (hoursSince > _kRevalidationIntervalHours) {
         debugPrint(
-          '[Purchase] Pro-status stale (${hoursSince.toStringAsFixed(1)}h)',
+          '[Purchase] Pro-status stale (${hoursSince.toStringAsFixed(1)}h), re-validating...',
         );
+        unawaited(fetchOffersAndCheckStatus());
       }
     }
 
-    AdManager.isPremium = isPro;
+    AdManager.updatePremiumStatus(isPro);
     if (!mounted) return;
     state = state.copyWith(isPro: isPro);
   }
 
   Future<void> _setProStatusLocally(bool pro) async {
+    final user = _currentUser;
+    if (user == null) return;
+
     await _secureStorage.write(key: _kSecIsPro, value: pro ? 'true' : 'false');
     if (pro) {
       await _secureStorage.write(
         key: _kSecProVerifiedAt,
         value: DateTime.now().millisecondsSinceEpoch.toString(),
       );
+      // Write Integrity Hash
+      await _secureStorage.write(
+        key: 'pro_integrity_v1',
+        value: _generateIntegrityHash(user.uid),
+      );
     } else {
       await _secureStorage.delete(key: _kSecProVerifiedAt);
+      await _secureStorage.delete(key: 'pro_integrity_v1');
     }
-    AdManager.isPremium = pro;
+    
+    AdManager.updatePremiumStatus(pro);
     if (!mounted) return;
     state = state.copyWith(isPro: pro);
   }
@@ -158,8 +192,6 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
   Future<void> clearProStatus() async {
     await _setProStatusLocally(false);
   }
-
-  // ── Fetch Offers ────────────────────────────────────────────────────────
 
   // ── Fetch Offers ────────────────────────────────────────────────────────
 
@@ -184,14 +216,17 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
         return;
       }
 
-      // Query parent product ID(s)
+      // Query ONLY the parent product ID(s) — NOT base plan IDs.
+      // Base plans are returned as subscriptionOfferDetails within each product.
       final ProductDetailsResponse response = await _iap.queryProductDetails(
         AppConfig.productIds,
       );
 
       if (response.notFoundIDs.isNotEmpty) {
         debugPrint(
-          '[Purchase] ❌ Products not found: ${response.notFoundIDs}. Check your Google Play Console Product IDs.',
+          '[Purchase] ❌ Products not found: ${response.notFoundIDs}. '
+          'Check your Google Play Console Product IDs. '
+          'Queried: ${AppConfig.productIds}',
         );
       }
 
@@ -212,6 +247,7 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
           final offers = product.productDetails.subscriptionOfferDetails;
           if (offers != null && offers.isNotEmpty) {
             for (final offer in offers) {
+              // Create a properly typed PremiumPlan for each base plan offer.
               final plan = PremiumPlan(product: product, offer: offer);
 
               // Unique key for preventing duplicate UI entries
@@ -222,17 +258,24 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
                 packages.add(plan);
                 seenPlanIds.add(planId);
                 debugPrint(
-                  '🔹 Plan Loaded: ${plan.titleText} | ${plan.price} | BasePlan: ${offer.basePlanId} | Offer: ${offer.offerId ?? "Standard"}',
+                  '🔹 Plan Loaded: ${plan.titleText} '
+                  '| Price: ${plan.price} '
+                  '| BasePlan: ${offer.basePlanId} '
+                  '| Offer: ${offer.offerId ?? "Standard"} '
+                  '| OfferToken: ${offer.offerIdToken.substring(0, 20)}...',
                 );
               }
             }
           } else {
             debugPrint(
-              '[Purchase] ⚠️ Product ${product.id} has no subscriptionOfferDetails. Check Base Plan status.',
+              '[Purchase] ⚠️ Product ${product.id} has no subscriptionOfferDetails. '
+              'Check Base Plan status in Google Play Console.',
             );
+            // No offer details — add as fallback (no typed offer)
             packages.add(PremiumPlan(product: product));
           }
         } else {
+          // Non-Android platform fallback
           packages.add(PremiumPlan(product: product));
         }
       }
@@ -243,6 +286,11 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
         if (!a.isYearly && b.isYearly) return 1;
         return 0;
       });
+
+      debugPrint('[Purchase] ✅ Total plans loaded: ${packages.length}');
+      for (final p in packages) {
+        debugPrint('  → ${p.titleText}: ${p.price} (${p.offer?.basePlanId ?? "no-offer"})');
+      }
 
       if (!mounted) return;
       state = state.copyWith(
@@ -273,6 +321,7 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
   /// Purchases the selected package.
   ///
   /// IMPORTANT: For Google Play Billing 5+, the [offerToken] is mandatory for subscriptions.
+  /// We use the offer-specific token (offerIdToken) to ensure the correct base plan is purchased.
   Future<void> purchaseSelectedPackage() async {
     if (state.selectedPackage == null || _purchaseInProgress) return;
     if (!_hasEligiblePremiumAccount) {
@@ -298,14 +347,14 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
       if (Platform.isAndroid) {
         final String? offerToken = _resolveAndroidOfferToken(plan);
 
-        if (offerToken == null) {
+        if (offerToken == null || offerToken.isEmpty) {
           throw Exception(
-            'Missing offerToken for Android subscription. Ensure base plans are active.',
+            'Missing offerToken for Android subscription "${plan.offer?.basePlanId ?? 'unknown'}". '
+            'Ensure base plans are active in Google Play Console.',
           );
         }
 
-        // TODO: Implement Upgrade/Downgrade logic with GooglePlayPurchaseParam(changeSubscriptionParam: ...)
-        // if user already has an active subscription token.
+        debugPrint('[Purchase] Purchasing with offerToken: ${offerToken.substring(0, 20)}...');
 
         purchaseParam = GooglePlayPurchaseParam(
           productDetails: plan.product,
@@ -328,26 +377,35 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
     }
   }
 
-  /// Resolve Google Play subscription offer token across plugin wrapper versions.
+  /// Resolve Google Play subscription offer token for the selected plan.
   ///
-  /// Newer `in_app_purchase_android` versions expose it via:
-  /// - `GooglePlayProductDetails.offerToken`
-  /// - `SubscriptionOfferDetailsWrapper.offerIdToken`
+  /// PRIORITY ORDER:
+  /// 1. The specific offer's offerIdToken (correct for the selected base plan)
+  /// 2. The product-level offerToken (fallback, may be for a different base plan)
   String? _resolveAndroidOfferToken(PremiumPlan plan) {
+    // 1. Use the specific offer's token — this is the correct token for the
+    //    selected base plan and ensures the right plan is purchased.
+    if (plan.offer != null) {
+      final token = plan.offer!.offerIdToken;
+      if (token.isNotEmpty) {
+        debugPrint('[Purchase] Using offer-specific token for: ${plan.offer!.basePlanId}');
+        return token;
+      }
+    }
+
+    // 2. Fallback: product-level offer token
     try {
       if (plan.product is GooglePlayProductDetails) {
         final details = plan.product as GooglePlayProductDetails;
         final token = details.offerToken;
-        if (token != null && token.isNotEmpty) return token;
+        if (token != null && token.isNotEmpty) {
+          debugPrint('[Purchase] ⚠️ Falling back to product-level offerToken');
+          return token;
+        }
       }
     } catch (_) {}
 
-    try {
-      final dynamic offer = plan.offer;
-      final String? token = offer?.offerIdToken as String?;
-      if (token != null && token.isNotEmpty) return token;
-    } catch (_) {}
-
+    debugPrint('[Purchase] ❌ No offerToken found for plan: ${plan.titleText}');
     return null;
   }
 
@@ -432,6 +490,18 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
             ? 'Restored Successfully!'
             : 'Welcome to Premium! 🎉',
       );
+
+      // Show congratulations notification
+      if (details.status == PurchaseStatus.purchased) {
+        debugPrint('[PurchaseNotifier] Successful purchase, triggering notification');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          NotificationService().showNotification(
+            id: 2,
+            title: 'Congratulations! 💎',
+            body: 'You are now a Premium member. Enjoy all the Pro features!',
+          );
+        });
+      }
     } catch (e) {
       debugPrint('[Purchase] Handle Success Error: $e');
       if (!mounted) return;
@@ -445,43 +515,40 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
   Future<void> _syncSubscriptionToFirestore(PurchaseDetails details) async {
     try {
       final user = _ref.read(authServiceProvider).currentUser;
-      if (user == null || user.isAnonymous) {
-        debugPrint('[Purchase] Sync failed: User not logged in.');
+      if (user == null || user.isAnonymous) return;
+
+      // OPTIMIZATION: Avoid redundant writes if status is already synced
+      final String? lastSyncedToken = await _secureStorage.read(key: 'last_synced_purchase_token');
+      final currentToken = details.verificationData.serverVerificationData;
+      
+      if (lastSyncedToken == currentToken && details.status != PurchaseStatus.purchased) {
+        debugPrint('[Purchase] Skipping Firestore sync - token already current.');
         return;
       }
 
-      final selectedPlan = state.selectedPackage;
       final Map<String, dynamic> subData = {
         'subscriptionStatus': 'premium',
         'productId': details.productID,
-        'purchaseToken': details
-            .verificationData
-            .serverVerificationData, // CRITICAL for server-side validation
+        'purchaseToken': currentToken,
         'orderId': details.purchaseID,
         'subscriptionStartDate': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
+      // Map the selected plan details to Firestore
+      final selectedPlan = state.selectedPackage;
       if (selectedPlan != null) {
-        subData['priceAmount'] = selectedPlan.price;
+        // Save raw numeric value for easier calculations/reporting
+        subData['priceAmount'] = selectedPlan.priceAmountMicros / 1000000.0;
         subData['priceCurrencyCode'] = selectedPlan.product.currencyCode;
-        subData['billingPeriod'] = selectedPlan.isYearly ? 'yearly' : 'monthly';
-
-        // Strictly capture basePlanId for backend tracking
-        try {
-          if (selectedPlan.offer != null) {
-            subData['basePlanId'] = selectedPlan.offer.basePlanId;
-            subData['offerId'] = selectedPlan.offer.offerId;
-          }
-        } catch (_) {}
+        subData['billingPeriod'] = selectedPlan.isYearly ? 'yearly' : (selectedPlan.isMonthly ? 'monthly' : 'test');
+        subData['basePlanId'] = selectedPlan.offer?.basePlanId ?? 'unknown';
       }
 
-      await _ref
-          .read(userServiceProvider)
-          .updateSubscription(user.uid, subData);
-      debugPrint(
-        '[Purchase] ✅ Firestore synced successfully with PurchaseToken.',
-      );
+      await _ref.read(userServiceProvider).updateSubscription(user.uid, subData);
+      await _secureStorage.write(key: 'last_synced_purchase_token', value: currentToken);
+      
+      debugPrint('[Purchase] ✅ Firestore synced successfully.');
     } catch (e) {
       debugPrint('[Purchase] ❌ Firestore sync error: $e');
     }

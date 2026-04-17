@@ -4,6 +4,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
@@ -25,8 +26,8 @@ class SettingsScreen extends ConsumerWidget {
   void _shareApp(BuildContext context) {
     SharePlus.instance.share(
       ShareParams(
-        text: 'Check out ImageMaster Pro - The ultimate image redactor and processing tool! Download here: https://play.google.com/store/apps/details?id=com.tarur.imagemetrics',
-        subject: 'ImageMaster Pro',
+        text: 'Check out Reducer - The ultimate image compression and processing tool! Download here: https://play.google.com/store/apps/details?id=com.tarurinfotech.reducer',
+        subject: 'Reducer',
       ),
     );
   }
@@ -37,7 +38,9 @@ class SettingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text('Settings', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 20)),
+        elevation: 0,
+        centerTitle: false,
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -62,7 +65,7 @@ class SettingsScreen extends ConsumerWidget {
             Card(
               child: ListTile(
                 leading: const Icon(Iconsax.verify, color: AppColors.success),
-                title: const Text('ImageMaster Pro Active'),
+                title: const Text('Reducer Pro Active'),
                 subtitle: const Text('Thank you for your support!'),
                 onTap: () => context.push('/premium'),
               ),
@@ -81,13 +84,13 @@ class SettingsScreen extends ConsumerWidget {
 
                   icon: Iconsax.star,
                   title: 'Rate on Play Store',
-                  onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=com.tarur.imagemetrics'),
+                  onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=com.tarurinfotech.reducer'),
                 ),
                 const Divider(),
                 SettingsTile(
 
                   icon: Iconsax.share,
-                  title: 'Share ImageMaster',
+                  title: 'Share Reducer',
                   onTap: () => _shareApp(context),
                 ),
                 const Divider(),
@@ -95,7 +98,7 @@ class SettingsScreen extends ConsumerWidget {
 
                   icon: Iconsax.message_question,
                   title: 'Contact Support',
-                  onTap: () => _launchUrl('mailto:support@tarur.com?subject=ImageMaster%20Support'),
+                  onTap: () => _launchUrl('mailto:support@tarurinfotech.com?subject=Reducer%20Support'),
                 ),
               ],
             ),
@@ -116,10 +119,17 @@ class SettingsScreen extends ConsumerWidget {
                   onTap: () => context.push('/privacy-policy'),
                 ),
                 const Divider(),
-                const ListTile(
-                  leading: Icon(Iconsax.info_circle),
-                  title: Text('Version'),
-                  trailing: Text('1.0.0', style: TextStyle(color: Colors.grey)),
+                FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (context, snapshot) {
+                    final version = snapshot.data?.version ?? '1.0.0';
+                    final build = snapshot.data?.buildNumber ?? '1';
+                    return ListTile(
+                      leading: const Icon(Iconsax.info_circle),
+                      title: const Text('Version'),
+                      trailing: Text('$version ($build)', style: const TextStyle(color: Colors.grey)),
+                    );
+                  },
                 ),
               ],
             ),

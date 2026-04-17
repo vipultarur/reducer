@@ -47,8 +47,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
     return Scaffold(
       body: Column(
         children: [
-          // Fix: Delay banner platform view until history is ready.
-          if (historyAsync.hasValue) const BannerAdWidget(),
+          const BannerAdWidget(),
           Expanded(
             child: historyAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),

@@ -28,18 +28,27 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
     super.dispose();
   }
 
+  int _retryCount = 0;
+  static const int _maxRetries = 15;
+
   void _tryClaimAd() {
     final ad = AdManager().getCachedBanner();
     if (ad != null && AdManager().isAdAvailable(ad)) {
       AdManager().claimAd(ad);
-      setState(() {
-        _claimedAd = ad;
-      });
-    } else {
-      // If busy or not loaded, retry shortly
-      Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        setState(() {
+          _claimedAd = ad;
+        });
+      }
+    } else if (_retryCount < _maxRetries) {
+      _retryCount++;
+      // Exponential backoff: 200ms, 400ms, 800ms... up to several seconds
+      final delay = Duration(milliseconds: 200 * _retryCount);
+      Future.delayed(delay, () {
         if (mounted && _claimedAd == null) _tryClaimAd();
       });
+    } else {
+      debugPrint('[BannerAdWidget] Max retries reached for ad claim.');
     }
   }
 

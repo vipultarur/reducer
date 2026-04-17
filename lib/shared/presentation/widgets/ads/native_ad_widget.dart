@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:reducer/core/ads/ad_manager.dart';
+import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 
 enum NativeAdSize { small, medium }
 
-class NativeAdWidget extends StatefulWidget {
+class NativeAdWidget extends ConsumerStatefulWidget {
   const NativeAdWidget({
     super.key,
     this.size = NativeAdSize.small,
@@ -13,10 +15,10 @@ class NativeAdWidget extends StatefulWidget {
   final NativeAdSize size;
 
   @override
-  State<NativeAdWidget> createState() => _NativeAdWidgetState();
+  ConsumerState<NativeAdWidget> createState() => _NativeAdWidgetState();
 }
 
-class _NativeAdWidgetState extends State<NativeAdWidget> {
+class _NativeAdWidgetState extends ConsumerState<NativeAdWidget> {
   NativeAd? _claimedAd;
 
   @override
@@ -50,7 +52,8 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (AdManager.isPremium) return const SizedBox.shrink();
+    final isPro = ref.watch(premiumControllerProvider).isPro;
+    if (isPro || AdManager.isPremium) return const SizedBox.shrink();
 
     final double height = widget.size == NativeAdSize.small ? 100 : 320;
 

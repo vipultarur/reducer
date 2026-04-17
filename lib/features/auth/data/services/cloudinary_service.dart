@@ -6,15 +6,17 @@ import 'package:http/http.dart' as http;
 
 class CloudinaryService {
   // Cloudinary configuration
-  static const String cloudName = 'dspvc4fht';
-  static const String uploadPreset = 'reducer';
-
-  // Included for configuration traceability. Unsigned upload does not use API secret.
-  static const String apiKey = 'tWnbFwqSy6-p6yk1g22OEjW5fAk';
+  static const String cloudName = String.fromEnvironment('CLOUDINARY_CLOUD_NAME');
+  static const String uploadPreset = String.fromEnvironment('CLOUDINARY_UPLOAD_PRESET');
 
   /// Upload image to Cloudinary using unsigned upload preset.
   /// Returns the secure delivery URL on success, else null.
   Future<String?> uploadImage(File imageFile, {String? userId}) async {
+    if (cloudName.isEmpty || uploadPreset.isEmpty) {
+      debugPrint('CloudinaryService: Missing configuration (CLOUD_NAME or UPLOAD_PRESET)');
+      return null;
+    }
+
     try {
       final url = Uri.parse(
         'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
@@ -44,7 +46,7 @@ class CloudinaryService {
       }
 
       debugPrint(
-        'CloudinaryService: upload failed (${response.statusCode}) payload=$raw',
+        'CloudinaryService: upload failed (${response.statusCode})',
       );
       return null;
     } catch (e) {

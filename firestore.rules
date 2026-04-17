@@ -2,12 +2,34 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow users to read and write only their own records
+    // Helper to check if a user is authenticated and is the owner
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
+      
+      // Users can only create their own document with 'free' status
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly([
+          'uid', 'email', 'name', 'profileImageUrl',
+          'subscriptionStatus', 'aiImagesGenerated',
+          'createdAt', 'updatedAt'
+        ])
+        && request.resource.data.subscriptionStatus == 'free';
+
+      // Users can update profile fields but NEVER subscription/billing fields
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'subscriptionStatus', 'productId', 'purchaseToken',
+          'orderId', 'subscriptionStartDate', 'subscriptionEndDate',
+          'expiryDate', 'autoRenewing', 'priceAmount',
+          'priceCurrencyCode', 'billingPeriod', 'basePlanId'
+        ]);
       
       match /history/{itemId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
       }
     }
   }

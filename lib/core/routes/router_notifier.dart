@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
 import 'package:reducer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
+import 'package:reducer/features/exif/presentation/providers/exif_providers.dart';
 
 /// A notifier that manages the redirect logic for GoRouter based on authentication state.
 /// This class implements [Listenable] so GoRouter can react to state changes.
@@ -30,8 +31,14 @@ class RouterNotifier extends ChangeNotifier {
 
     // Guest mode is allowed across the app, including profile.
 
-    // Hard-gate premium-only route.
+    // Hard-gate premium-only routes.
+    final credits = _ref.read(exifCreditProvider).availableCredits;
+    
     if (path == '/bulk-editor' && !isPro) {
+      return '/premium';
+    }
+    
+    if (path == '/exif-eraser' && !isPro && credits <= 0) {
       return '/premium';
     }
 

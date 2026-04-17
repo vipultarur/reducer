@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:reducer/features/auth/presentation/providers/auth_providers.dart';
+import 'package:go_router/go_router.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 import 'package:reducer/shared/widgets/app_status_bar.dart';
 import 'package:reducer/features/premium/presentation/widgets/already_pro_state.dart';
@@ -10,7 +10,6 @@ import 'package:reducer/features/premium/presentation/widgets/no_plans_state.dar
 import 'package:reducer/features/premium/presentation/widgets/premium_feature_item.dart';
 import 'package:reducer/features/premium/presentation/widgets/horizontal_package_selector.dart';
 import 'package:reducer/features/premium/presentation/widgets/subscribe_button.dart';
-import 'package:reducer/features/premium/presentation/widgets/premium_login_required_block.dart';
 import 'package:reducer/features/premium/presentation/widgets/premium_footer_links.dart';
 import 'package:reducer/features/premium/presentation/widgets/premium_loading_overlay.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -22,8 +21,6 @@ class PremiumScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(premiumControllerProvider);
-    final authState = ref.watch(authProvider).value;
-    final isLoggedIn = authState != null && !authState.isAnonymous;
 
     // Listen for state changes → show snackbars
     ref.listen<PurchaseState>(premiumControllerProvider, (prev, next) {
@@ -37,6 +34,7 @@ class PremiumScreen extends ConsumerWidget {
         AppStatusBar.showError(context, next.errorMessage);
       }
     });
+
 
     if (state.isPro) {
       return const AlreadyProState();
@@ -85,100 +83,56 @@ class PremiumScreen extends ConsumerWidget {
             duration: 7.seconds,
           ),
 
+          // Floating Close Button
+          Positioned(
+            top: 36, // Moved 20px down from 16
+            left: 16,
+            child: IconButton(
+              onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/');
+                }
+              },
+              icon: const Icon(Icons.close, color: Colors.white70),
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white10,
+                padding: const EdgeInsets.all(8),
+              ),
+            ).animate().fadeIn(duration: 400.ms).scale(),
+          ),
+
           SafeArea(
-            child: Column(
-              children: [
-                // Custom Premium AppBar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: const Icon(Icons.close, color: Colors.white70),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.white10,
-                          padding: const EdgeInsets.all(8),
-                        ),
-                      ).animate().fadeIn(duration: 400.ms).scale(),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [Color(0xFFEAB308), Color(0xFFFACC15)]),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFEAB308).withValues(alpha: 0.3),
-                              blurRadius: 8,
-                              spreadRadius: 1,
-                            )
-                          ],
-                        ),
-                        child: const Row(
-                          children: [
-                            Icon(Iconsax.crown, size: 14, color: Colors.black),
-                            SizedBox(width: 6),
-                            Text(
-                              'PRO',
-                              style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ).animate().fadeIn(delay: 200.ms, duration: 400.ms).slideX(begin: 0.2, end: 0),
-                    ],
-                  ),
-                ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Hero Content
+                  _buildHeroHeader(context),
+                  
+                  // Glassmorphism Features Card
+                  _buildFeaturesCard(context),
 
-                Expanded(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 12),
-                        // Hero Content
-                        _buildHeroHeader(context),
-                        
-                        const SizedBox(height: 40),
+                  // Plan Selection
+                  const HorizontalPackageSelector()
+                      .animate()
+                      .fadeIn(delay: 600.ms, duration: 500.ms)
+                      .slideY(begin: 0.1, end: 0),
 
-                        // Glassmorphism Features Card
-                        _buildFeaturesCard(context),
+                  // Subscribe Button & Trust Subtext
+                  const SubscribeButton()
+                      .animate()
+                      .fadeIn(delay: 800.ms, duration: 500.ms)
+                      .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1)),
 
-                        const SizedBox(height: 32),
-
-                        // Plan Selection
-                        const HorizontalPackageSelector()
-                            .animate()
-                            .fadeIn(delay: 600.ms, duration: 500.ms)
-                            .slideY(begin: 0.1, end: 0),
-
-                        const SizedBox(height: 32),
-
-                        if (!isLoggedIn) ...[
-                          const PremiumLoginRequiredBlock(),
-                          const SizedBox(height: 24),
-                        ],
-
-                        // Subscribe Button
-                        const SubscribeButton()
-                            .animate()
-                            .fadeIn(delay: 800.ms, duration: 500.ms)
-                            .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1)),
-
-                        const SizedBox(height: 32),
-
-                        // Restores & Legal
-                        const PremiumFooterLinks(),
-                        const SizedBox(height: 48),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+                  // Restores & Legal
+                  const PremiumFooterLinks(),
+                ],
+              ),
             ),
           ),
-          
           if (state.isLoading) const PremiumLoadingOverlay(),
         ],
       ),
@@ -216,23 +170,41 @@ class PremiumScreen extends ConsumerWidget {
   Widget _buildHeroHeader(BuildContext context) {
     return Column(
       children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFACC15).withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFFACC15).withValues(alpha: 0.2)),
+          ),
+          child: const Text(
+            'PRO ACCESS',
+            style: TextStyle(
+              color: Color(0xFFFACC15),
+              fontSize: 9, // Shrink
+              fontWeight: FontWeight.w900,
+              letterSpacing: 2.0,
+            ),
+          ),
+        ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.5, end: 0),
+        const SizedBox(height: 8),
         const Text(
           'Unlock the Full Studio',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white,
-            fontSize: 28,
+            fontSize: 22, // Shrink from 26
             fontWeight: FontWeight.w900,
             letterSpacing: -0.5,
           ),
         ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2, end: 0),
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
         const Text(
-          'Get high-performance tools, AI upscaling,\nand an ad-free experience.',
+          'Get high-performance tools, AI upscaling,\nand an absolute ad-free experience.',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Colors.white60,
-            fontSize: 15,
+            fontSize: 12, // Shrink from 13
             height: 1.4,
           ),
         ).animate().fadeIn(delay: 200.ms, duration: 600.ms),
@@ -242,33 +214,34 @@ class PremiumScreen extends ConsumerWidget {
 
   Widget _buildFeaturesCard(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(24), 
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(16), // Shrink from 20
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min, // Ensure it doesn't take extra space
             children: [
               const PremiumFeatureItem(
                 icon: Iconsax.maximize_4,
                 label: 'Bulk Studio (Batch Resize & Export)',
               ),
-              const Divider(height: 32, color: Colors.white10),
+              const Divider(height: 8, color: Colors.white10),
               const PremiumFeatureItem(
                 icon: Iconsax.cpu,
                 label: 'AI Turbo Upscaling & Clean',
               ),
-              const Divider(height: 32, color: Colors.white10),
+              const Divider(height: 8, color: Colors.white10),
               const PremiumFeatureItem(
                 icon: Iconsax.shield_slash,
                 label: 'Zero Ads. Absolute Privacy.',
               ),
-              const Divider(height: 32, color: Colors.white10),
+              const Divider(height: 8, color: Colors.white10),
               const PremiumFeatureItem(
                 icon: Iconsax.document_download,
                 label: 'Direct ZIP & 4K Collections',

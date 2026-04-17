@@ -15,6 +15,7 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true
     }
 
     // ✅ New Kotlin compiler config (fix deprecated warning)
@@ -66,7 +67,6 @@ android {
 
     buildTypes {
         release {
-            // ✅ OPTIMIZATION: Shrink bundle size
             isMinifyEnabled = true
             isShrinkResources = true
             
@@ -77,6 +77,12 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+
+    bundle {
+        language { enableSplit = true }
+        density { enableSplit = true }
+        abi { enableSplit = true }
+    }
 }
 
 flutter {
@@ -84,5 +90,6 @@ flutter {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
     implementation("com.google.android.material:material:1.9.0")
 }

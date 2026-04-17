@@ -8,6 +8,9 @@ import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
 import 'package:reducer/core/theme/app_theme.dart';
 import 'package:reducer/features/gallery/data/models/history_item.dart';
+import 'package:gal/gal.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:reducer/core/services/permission_service.dart';
 
 class HistoryCard extends StatelessWidget {
   final HistoryItem item;
@@ -32,9 +35,7 @@ class HistoryCard extends StatelessWidget {
             if (item.isBulk) {
               context.push('/bulk-history-detail', extra: item);
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Re-edit feature coming soon!')),
-              );
+              _showActionSheet(context);
             }
           },
           child: Padding(
@@ -60,6 +61,8 @@ class HistoryCard extends StatelessWidget {
                                   width: 72,
                                   height: 72,
                                   fit: BoxFit.cover,
+                                  cacheWidth: 144, // 2x for retina displays
+                                  cacheHeight: 144,
                                 )
                               : Container(
                                   width: 72,
@@ -142,6 +145,87 @@ class HistoryCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showActionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Text('Image Actions', style: AppTextStyles.titleMedium(context)),
+            const SizedBox(height: 24),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Iconsax.save_2, color: AppColors.primary),
+              ),
+              title: const Text('Save to Gallery'),
+              onTap: () async {
+                Navigator.pop(context);
+                final path = item.getAbsoluteProcessedPaths(appDocDir ?? '').firstOrNull;
+                if (path != null && File(path).existsSync()) {
+                  final ok = await PermissionService.instance.ensurePhotosPermission(context);
+                  if (ok) {
+                    await Gal.putImage(path, album: 'Reducer');
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Saved to gallery!'), behavior: SnackBarBehavior.floating),
+                      );
+                    }
+                  }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Processed file not found'), behavior: SnackBarBehavior.floating),
+                  );
+                }
+              },
+            ),
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Iconsax.share, color: AppColors.secondary),
+              ),
+              title: const Text('Share Image'),
+              onTap: () async {
+                Navigator.pop(context);
+                final path = item.getAbsoluteProcessedPaths(appDocDir ?? '').firstOrNull;
+                if (path != null && File(path).existsSync()) {
+                  await Share.shareXFiles([XFile(path)]);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Processed file not found'), behavior: SnackBarBehavior.floating),
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
         ),
       ),
     );

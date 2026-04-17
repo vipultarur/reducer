@@ -12,12 +12,16 @@ class BulkImageState {
   final bool isProcessing;
   final double progress;
   final ImageSettings settings;
+  final int totalOriginalSize;
+  final int totalCompressedSize;
 
   BulkImageState({
     this.selectedImages = const [],
     this.processedResults = const {},
     this.isProcessing = false,
     this.progress = 0.0,
+    this.totalOriginalSize = 0,
+    this.totalCompressedSize = 0,
     ImageSettings? settings,
   }) : settings = settings ?? ImageSettings();
 
@@ -26,6 +30,8 @@ class BulkImageState {
     Map<String, File?>? processedResults,
     bool? isProcessing,
     double? progress,
+    int? totalOriginalSize,
+    int? totalCompressedSize,
     ImageSettings? settings,
   }) {
     return BulkImageState(
@@ -33,6 +39,8 @@ class BulkImageState {
       processedResults: processedResults ?? this.processedResults,
       isProcessing: isProcessing ?? this.isProcessing,
       progress: progress ?? this.progress,
+      totalOriginalSize: totalOriginalSize ?? this.totalOriginalSize,
+      totalCompressedSize: totalCompressedSize ?? this.totalCompressedSize,
       settings: settings ?? this.settings,
     );
   }
@@ -45,16 +53,35 @@ class BulkImageController extends _$BulkImageController {
     return BulkImageState();
   }
 
-  void selectImages(List<XFile> images) {
-    state = state.copyWith(selectedImages: images, processedResults: {});
+  Future<void> selectImages(List<XFile> images) async {
+    int totalSize = 0;
+    for (final img in images) {
+      totalSize += await img.length();
+    }
+    state = state.copyWith(
+      selectedImages: images,
+      processedResults: {},
+      totalOriginalSize: totalSize,
+      totalCompressedSize: 0,
+    );
   }
 
   Future<void> processAll(bool isPro) async {
     if (state.selectedImages.isEmpty) return;
 
-    state = state.copyWith(isProcessing: true, progress: 0.0, processedResults: {});
+    // Internal Security Guard: Enforce 50-image limit for non-premium even if UI is bypassed
+    final effectiveImages = isPro 
+        ? state.selectedImages 
+        : state.selectedImages.take(50).toList();
 
-    final inputFiles = state.selectedImages.map((x) => File(x.path)).toList();
+    state = state.copyWith(
+      isProcessing: true,
+      progress: 0.0,
+      processedResults: {},
+      totalCompressedSize: 0,
+    );
+
+    final inputFiles = effectiveImages.map((x) => File(x.path)).toList();
     final progressStream = ImageProcessor.processBulkWithProgress(
       inputFiles,
       state.settings,
@@ -65,18 +92,26 @@ class BulkImageController extends _$BulkImageController {
     await for (final update in progressStream) {
       if (!state.isProcessing) break; // Safety check
 
-      final newBatch = state.selectedImages
+      final batchImages = state.selectedImages
           .skip(currentIndex)
           .take(update.batchResults.length)
           .toList();
+
+      int batchCompressedSize = 0;
+      for (final file in update.batchResults) {
+        if (file != null) {
+          batchCompressedSize += await file.length();
+        }
+      }
 
       state = state.copyWith(
         progress: update.progress,
         processedResults: {
           ...state.processedResults,
-          for (int i = 0; i < newBatch.length; i++)
-            newBatch[i].name: update.batchResults[i],
+          for (int i = 0; i < batchImages.length; i++)
+            batchImages[i].name: update.batchResults[i],
         },
+        totalCompressedSize: state.totalCompressedSize + batchCompressedSize,
       );
       
       currentIndex += update.batchResults.length;

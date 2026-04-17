@@ -4,10 +4,9 @@ import 'package:reducer/features/auth/presentation/providers/auth_providers.dart
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 import 'package:reducer/shared/presentation/widgets/ads/banner_ad_widget.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
-import 'package:reducer/features/home/presentation/widgets/home_header.dart';
-import 'package:reducer/features/home/presentation/widgets/guest_auth_card.dart';
 import 'package:reducer/features/home/presentation/widgets/quick_actions_section.dart';
 import 'package:reducer/features/home/presentation/widgets/pro_tools_section.dart';
+import 'package:reducer/features/home/presentation/widgets/premium_promo_card.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -20,9 +19,11 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       body: SafeArea(
+        top: false,
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
+
             // Banner Ad
             const SliverToBoxAdapter(
               child: BannerAdWidget(),
@@ -30,18 +31,23 @@ class HomeScreen extends ConsumerWidget {
 
             // Main Content
             SliverPadding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
-                  const HomeHeader(),
-                  if (!isLoggedIn) ...[
-                    const SizedBox(height: AppSpacing.lg),
-                    const GuestAuthCard(),
+                  if (!isPro) ...[
+                    const PremiumPromoCard(),
+                    const SizedBox(height: AppSpacing.xl2),
                   ],
-                  const SizedBox(height: AppSpacing.xl2),
+                  
+                  // Interactive Quick Actions
                   const QuickActionsSection(),
+                  
                   const SizedBox(height: AppSpacing.xl3),
+                  
+                  // Pro Tools Section
                   ProToolsSection(isPro: isPro, isLoggedIn: isLoggedIn),
+                  
+                  const SizedBox(height: AppSpacing.xl3 * 2),
                 ]),
               ),
             ),

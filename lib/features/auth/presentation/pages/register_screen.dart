@@ -65,10 +65,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   String _postAuthRoute() {
     final target = widget.redirectTo;
-    if (target == null || target.isEmpty) return '/home';
-    if (!target.startsWith('/')) return '/home';
+    if (target == null || target.isEmpty) return '/';
+    
+    // Security Fix: Ensure it's a strictly internal path and avoid protocol-relative URLs (//)
+    if (!target.startsWith('/') || target.startsWith('//')) return '/';
+    
+    // Avoid redirect loops
     if (target == '/login' || target == '/register' || target == '/splash') {
-      return '/home';
+      return '/';
     }
     return target;
   }
@@ -114,10 +118,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(
-                      Iconsax.user,
-                      size: 80,
-                      color: Colors.purpleAccent,
+                    Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          'assets/logo/reducer_logo.jpeg',
+                          height: 80,
+                          width: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -130,7 +140,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Join AI Image Pro and start creating',
+                      'Join Reducer and start creating',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.6,
@@ -208,8 +218,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         if (value == null || value.isEmpty) {
                           return 'Please enter password';
                         }
-                        if (value.length < 6) {
-                          return 'Password must be at least 6 characters';
+                        if (value.length < 8) {
+                          return 'Password must be at least 8 characters';
+                        }
+                        if (!value.contains(RegExp(r'[^a-zA-Z]'))) {
+                          return 'Password must contain at least one number or special character';
                         }
                         return null;
                       },
@@ -255,9 +268,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     // Google Login Button
                     OutlinedButton.icon(
                       onPressed: isLoading ? null : _googleSignIn,
-                      icon: Image.network(
-                        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
-                        height: 24,
+                      icon: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Image.asset(
+                          'assets/logo/google_g.png',
+                          height: 18,
+                          width: 18,
+                        ),
                       ),
                       label: const Text('Register with Google'),
                       style: OutlinedButton.styleFrom(

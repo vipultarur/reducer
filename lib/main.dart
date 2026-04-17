@@ -1,42 +1,86 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:google_sign_in/google_sign_in.dart' as google_auth;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:reducer/core/utils/image_processor.dart';
 
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_provider.dart';
 import 'core/ads/ad_manager.dart';
 import 'core/ads/consent_manager.dart';
 import 'core/routes/app_router.dart';
+import 'core/services/notification_service.dart';
 import 'firebase_options.dart';
-
+import 'package:google_sign_in/google_sign_in.dart' as google_auth;
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // 1. Core Framework Setup
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  
+  // 2. Preserve native splash until Flutter is ready
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
-  // 1. Configure global image cache early to avoid memory spikes
-  PaintingBinding.instance.imageCache
-    ..maximumSizeBytes = 120 << 20 // 120MB
-    ..maximumSize = 200;
+  // 3. Essential services with Crashlytics hardening
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
 
-  // 2. Core initialization (Parallelized for speed)
-  // Defer non-critical services to run concurrently
-  final initFuture = Future.wait([
-    Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
-    ConsentManager().configure(
+    // 4. Firebase Crashlytics Setup
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+    // 2. Memory & Image Configuration
+    // Reduced from 120MB/200 to 64MB/100 to prevent OOM on low-end devices
+    PaintingBinding.instance.imageCache
+      ..maximumSizeBytes = 64 << 20 // 64MB
+      ..maximumSize = 100;
+
+    
+    // Centralized Firestore Configuration with optimized cache size
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: 50 * 1024 * 1024, // Optimized 50MB
+    );
+
+    // 4. Google Sign-In Initialization (Required for v7.x.x)
+    await google_auth.GoogleSignIn.instance.initialize();
+    
+    // 5. Deferred/Non-blocking initializations
+    unawaited(_initializeSecondaryServices());
+  } catch (e) {
+    debugPrint('Critical initialization failure: $e');
+  }
+
+  // 5. Start App immediately
+  runApp(const ProviderScope(child: MyApp()));
+}
+
+/// Services that can initialize in the background without blocking the UI thread.
+Future<void> _initializeSecondaryServices() async {
+  try {
+    // Notifications init
+    await NotificationService().init();
+    
+    // Permission requests shouldn't block startup
+    unawaited(NotificationService().requestPermissions());
+    
+    // Consent & Ads
+    unawaited(ConsentManager().configure(
       testDeviceIds: _umpTestDeviceIdsFromEnv(),
       forceEeaInDebug: kDebugMode,
-    ),
-  ]);
+    ));
 
-  // Non-blocking initialization for Auth
-  unawaited(google_auth.GoogleSignIn.instance.initialize());
-
-  await initFuture;
-
-  // 3. Start App
-  runApp(const ProviderScope(child: MyApp()));
+    // Cleanup old temp processing files
+    unawaited(ImageProcessor.cleanupTempFiles());
+  } catch (e) {
+    debugPrint('Secondary service initialization error: $e');
+  }
 }
 
 List<String> _umpTestDeviceIdsFromEnv() {
@@ -76,13 +120,14 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
-      title: 'ImageMaster Pro',
+      title: 'Reducer',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       routerConfig: router,
     );
   }

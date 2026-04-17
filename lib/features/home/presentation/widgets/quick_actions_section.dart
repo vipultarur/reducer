@@ -13,19 +13,40 @@ class QuickActionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Essential Tools', style: AppTextStyles.titleLarge(context)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Quick Start', style: AppTextStyles.titleLarge(context)),
+            TextButton(
+              onPressed: () {}, // Could lead to a guide or "How it works"
+              child: Text(
+                'How it works',
+                style: AppTextStyles.labelSmall(context).copyWith(color: AppColors.primary),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        
+        // Hero Action Card
+        _buildHeroCard(context, isDark),
+        
         const SizedBox(height: AppSpacing.lg),
+        
+        // Secondary Actions Grid
         Row(
           children: [
             Expanded(
               child: ToolCard(
-                title: 'Compress',
-                subtitle: 'Reduce size',
-                icon: Iconsax.document_download,
-                color: AppColors.primary,
+                title: 'Convert',
+                subtitle: 'PNG, WebP, etc.',
+                icon: Iconsax.refresh,
+                color: AppColors.secondary,
                 onTap: () => AdManager().showInterstitialAd(
                   onComplete: () => context.push('/single-editor'),
                 ),
@@ -34,12 +55,12 @@ class QuickActionsSection extends StatelessWidget {
             const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: ToolCard(
-                title: 'Convert',
-                subtitle: 'Change format',
-                icon: Iconsax.refresh,
-                color: AppColors.secondary,
+                title: 'History',
+                subtitle: 'Recent edits',
+                icon: Iconsax.clock,
+                color: Colors.orangeAccent,
                 onTap: () => AdManager().showInterstitialAd(
-                  onComplete: () => context.push('/single-editor'),
+                  onComplete: () => context.push('/gallery'),
                 ),
               ),
             ),
@@ -47,5 +68,79 @@ class QuickActionsSection extends StatelessWidget {
         ),
       ],
     ).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(begin: 0.1, end: 0);
+  }
+
+  Widget _buildHeroCard(BuildContext context, bool isDark) {
+    return Container(
+      width: double.infinity,
+      height: 160,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppColors.primary, AppColors.primary.withValues(alpha: 0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        boxShadow: AppColors.buttonShadow,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => AdManager().showInterstitialAd(
+            onComplete: () => context.push('/single-editor'),
+          ),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Stack(
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Iconsax.image, color: Colors.white, size: 32),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Optimize Image',
+                      style: AppTextStyles.titleLarge(context).copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Reduce size while maintaining quality',
+                      style: AppTextStyles.bodySmall(context).copyWith(
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+                Positioned(
+                  right: -20,
+                  bottom: -20,
+                  child: Icon(
+                    Iconsax.magicpen,
+                    size: 140,
+                    color: Colors.white.withValues(alpha: 0.1),
+                  ),
+                ),
+                const Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Icon(Iconsax.arrow_right_1, color: Colors.white, size: 24),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

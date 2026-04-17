@@ -13,8 +13,11 @@ class MainScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Branch 3 is Premium
+    final showAppBar = navigationShell.currentIndex != 3;
+
     return Scaffold(
-      appBar: CommonAppBar(navigationShell: navigationShell),
+      appBar: showAppBar ? CommonAppBar(navigationShell: navigationShell) : null,
       body: navigationShell,
       bottomNavigationBar: CommonBottomNavBar(navigationShell: navigationShell),
     );

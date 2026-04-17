@@ -78,6 +78,7 @@ class ImageSettings {
       'flipHorizontal': flipHorizontal,
       'flipVertical': flipVertical,
       'targetFileSizeKB': targetFileSizeKB,
+      'isTargetUnitMb': isTargetUnitMb,
     };
   }
 
@@ -93,6 +94,7 @@ class ImageSettings {
       flipHorizontal: json['flipHorizontal'] ?? false,
       flipVertical: json['flipVertical'] ?? false,
       targetFileSizeKB: json['targetFileSizeKB'],
+      isTargetUnitMb: json['isTargetUnitMb'] ?? true,
     );
   }
 }

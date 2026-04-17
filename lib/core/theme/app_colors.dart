@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Centralized color palette for ImageMaster Pro
+/// Centralized color palette for Reducer
 /// All screens reference this file — never hardcode colors in screens.
 class AppColors {
   AppColors._();

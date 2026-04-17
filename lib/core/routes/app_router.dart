@@ -1,5 +1,5 @@
 import 'package:go_router/go_router.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:reducer/features/auth/presentation/pages/login_screen.dart';
@@ -22,11 +22,12 @@ import 'package:reducer/features/gallery/data/models/history_item.dart';
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final notifier = ref.watch(routerNotifierProvider);
+  final notifier = ref.read(routerNotifierProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/splash',
+    debugLogDiagnostics: true,
     refreshListenable: notifier,
     redirect: notifier.redirect,
     routes: [
@@ -47,10 +48,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/',
-                builder: (context, state) => const HomeScreen(),
-              ),
-              GoRoute(
-                path: '/home',
                 builder: (context, state) => const HomeScreen(),
               ),
             ],
@@ -103,7 +100,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/bulk-history-detail',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => BulkHistoryDetailScreen(item: state.extra as HistoryItem),
+        builder: (context, state) {
+          final item = state.extra as HistoryItem?;
+          if (item == null) {
+            return const Scaffold(body: Center(child: Text('History item missing')));
+          }
+          return BulkHistoryDetailScreen(item: item);
+        },
       ),
       GoRoute(
         path: '/exif-eraser',

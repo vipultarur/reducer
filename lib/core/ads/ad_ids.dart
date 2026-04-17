@@ -21,11 +21,11 @@ class AdIds {
   static const String _androidRewarded     = 'ca-app-pub-9155918242947466/1743660491';
 
   // ── iOS production ad unit IDs ────────────────────────────────────────────
-  static const String _iosBanner           = 'ca-app-pub-9155918242947466/4133195707';
-  static const String _iosInterstitial     = 'ca-app-pub-9155918242947466/9249791016';
-  static const String _iosAppOpen          = 'ca-app-pub-9155918242947466/8096491449';
-  static const String _iosNative           = 'ca-app-pub-9155918242947466/2346295726';
-  static const String _iosRewarded         = 'ca-app-pub-9155918242947466/1743660491';
+  static const String _iosBanner           = 'ca-app-pub-3940256099942544/2934735716';
+  static const String _iosInterstitial     = 'ca-app-pub-3940256099942544/4411468910';
+  static const String _iosAppOpen          = 'ca-app-pub-3940256099942544/5662855259';
+  static const String _iosNative           = 'ca-app-pub-3940256099942544/3986624511';
+  static const String _iosRewarded         = 'ca-app-pub-3940256099942544/1712485313';
 
   // ── Platform-resolved getters ─────────────────────────────────────────────
   // KEY FIX: kDebugMode → use test IDs, kReleaseMode → use production IDs

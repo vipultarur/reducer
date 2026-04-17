@@ -6,12 +6,7 @@ import 'package:reducer/features/auth/domain/models/user_model.dart';
 class UserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  UserService() {
-    _firestore.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: 100 * 1024 * 1024,
-    );
-  }
+  UserService();
 
   CollectionReference<Map<String, dynamic>> get _usersCollection =>
       _firestore.collection('users');

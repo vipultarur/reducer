@@ -235,12 +235,8 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen>
       final thumbRelPath = 'history/thumb_bulk_$sessionId.jpg';
       await File(p.join(appDir.path, thumbRelPath)).writeAsBytes(thumbBytes);
 
-      final sizes = await Future.wait([
-        ...state.selectedImages.map((x) => x.length()),
-        ...results.map((f) => f.length()),
-      ]);
-      final originalSize = sizes.take(state.selectedImages.length).fold(0, (a, b) => a + b);
-      final processedSize = sizes.skip(state.selectedImages.length).fold(0, (a, b) => a + b);
+      final originalSize = state.totalOriginalSize;
+      final processedSize = state.totalCompressedSize;
 
       final historyItem = HistoryItem(
         id: sessionId,
@@ -266,7 +262,7 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen>
     if (successful.isEmpty) return;
 
     try {
-      await Future.wait(successful.map((f) => Gal.putImage(f.path, album: 'ImageMaster Pro')));
+      await Future.wait(successful.map((f) => Gal.putImage(f.path, album: 'Reducer')));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('✓ Saved ${successful.length} images!'), backgroundColor: Colors.green),

@@ -9,28 +9,26 @@ class AIImageProAuthService {
   // NOTE: If GoogleSignIn() constructor is reported as missing, 
   // ensure you are using the latest version of the google_sign_in package.
   // In some versions, you might need to use GoogleSignIn.standard() or similar.
-  final google_auth.GoogleSignIn _googleSignIn = google_auth.GoogleSignIn.instance;
+  // Standard GoogleSignIn instance is now managed via singleton in v7.x.x
 
   Stream<User?> get authStateChanges => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
-
-  // Sign in with Google
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // 7.2.0+ uses authenticate() instead of signIn()
-      final googleUser = await _googleSignIn.authenticate();
-
-      // In 7.2.0+, authentication and authorization are separate.
-      final googleAuth = googleUser.authentication;
-      
-      // If we need the accessToken (for Google APIs or extra validation), we must authorize explicitly.
+      // 1. Start the interactive sign-in flow (v7.x.x uses instance.authenticate())
+      final googleUser = await google_auth.GoogleSignIn.instance.authenticate();
+ 
+      // 3. Obtain authorization and authentication tokens
+      final auth = googleUser.authentication;
       final authorized = await googleUser.authorizationClient.authorizeScopes(['email', 'profile']);
-
+ 
+      // 4. Create a new credential
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: authorized.accessToken,
-        idToken: googleAuth.idToken,
+        idToken: auth.idToken,
       );
-
+ 
+      // 5. Once signed in, return the UserCredential
       return await _auth.signInWithCredential(credential);
     } catch (e) {
       debugPrint('AuthService: Google Sign-In error: $e');
@@ -59,7 +57,7 @@ class AIImageProAuthService {
     try {
       await Future.wait([
         _auth.signOut(),
-        _googleSignIn.signOut(),
+        google_auth.GoogleSignIn.instance.signOut(),
       ]);
     } catch (e) {
       debugPrint('AuthService: Sign-out error: $e');

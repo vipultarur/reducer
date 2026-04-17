@@ -59,10 +59,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   String _postAuthRoute() {
     final target = widget.redirectTo;
-    if (target == null || target.isEmpty) return '/home';
-    if (!target.startsWith('/')) return '/home';
+    if (target == null || target.isEmpty) return '/';
+    
+    // Security Fix: Ensure it's a strictly internal path and avoid protocol-relative URLs (//)
+    if (!target.startsWith('/') || target.startsWith('//')) return '/';
+    
+    // Avoid redirect loops
     if (target == '/login' || target == '/register' || target == '/splash') {
-      return '/home';
+      return '/';
     }
     return target;
   }
@@ -73,12 +77,92 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return '/register?redirect=${Uri.encodeComponent(target)}';
   }
 
+  Future<void> _showForgotPasswordDialog() async {
+    final emailController = TextEditingController(text: _emailController.text);
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Enter your email address and we will send you a link to reset your password.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: emailController,
+              decoration: const InputDecoration(
+                labelText: 'Email Address',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              if (email.isEmpty) return;
+              
+              Navigator.pop(context); // Close dialog first
+
+              final messenger = ScaffoldMessenger.of(context);
+              try {
+                await ref.read(authControllerProvider.notifier).sendPasswordResetEmail(email);
+                if (mounted) {
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Password reset email sent! Please check your inbox.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString()),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Send Reset Link'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authControllerProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Iconsax.arrow_left),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
+          },
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      extendBodyBehindAppBar: true,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -100,10 +184,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // Logo and Title
-                    const Icon(
-                      Icons.auto_awesome,
-                      size: 80,
-                      color: Colors.blueAccent,
+                    Center(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          'assets/logo/reducer_logo.jpeg',
+                          height: 80,
+                          width: 80,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -116,7 +206,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Log in to continue creating with AI',
+                      'Log in to continue using Reducer',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.6,
@@ -184,9 +274,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {
-                          // TODO: Implement forgot password
-                        },
+                        onPressed: () => _showForgotPasswordDialog(),
                         child: const Text('Forgot Password?'),
                       ),
                     ),
@@ -231,9 +319,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     // Google Login Button
                     OutlinedButton.icon(
                       onPressed: isLoading ? null : _googleSignIn,
-                      icon: Image.network(
-                        'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
-                        height: 24,
+                      icon: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Image.asset(
+                          'assets/logo/google_g.png',
+                          height: 18,
+                          width: 18,
+                        ),
                       ),
                       label: const Text('Continue with Google'),
                       style: OutlinedButton.styleFrom(
@@ -265,7 +361,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                     // Guest Mode Link
                     TextButton(
-                      onPressed: () => context.go('/home'),
+                      onPressed: () => context.go('/'),
                       child: Text(
                         'Continue as Guest',
                         style: TextStyle(color: theme.colorScheme.secondary),

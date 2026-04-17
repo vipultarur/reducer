@@ -18,27 +18,28 @@ class HorizontalPackageSelector extends ConsumerWidget {
       children: [
         Row(
           children: [
-            const Expanded(child: Divider()),
+            const Expanded(child: Divider(height: 1, color: Colors.white10)),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               child: Text(
                 'SELECT PLAN',
-                style: TextStyle(
-                  fontSize: 12,
+                style: const TextStyle(
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey.shade400,
-                  letterSpacing: 1.2,
+                  color: Colors.white24,
+                  letterSpacing: 1.0,
                 ),
               ),
             ),
-            const Expanded(child: Divider()),
+            const Expanded(child: Divider(height: 1, color: Colors.white10)),
           ],
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: state.availablePackages.map((package) {
-            final isPopular = package.isMonthly;
+            // Show dynamic savings badge for yearly plan
+            final savingsText = _calculateSavings(state, package);
             
             return Expanded(
               child: Stack(
@@ -50,13 +51,15 @@ class HorizontalPackageSelector extends ConsumerWidget {
                     isSelected: package == state.selectedPackage,
                     onTap: () => notifier.selectPackage(package),
                   ),
-                  if (isPopular)
+                  if (savingsText != null)
                     Positioned(
                       top: -12,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(colors: [Color(0xFFEAB308), Color(0xFFFACC15)]),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFEAB308), Color(0xFFFACC15)],
+                          ),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
@@ -65,9 +68,9 @@ class HorizontalPackageSelector extends ConsumerWidget {
                             )
                           ],
                         ),
-                        child: const Text(
-                          'SAVER',
-                          style: TextStyle(
+                        child: Text(
+                          savingsText,
+                          style: const TextStyle(
                             color: Colors.black,
                             fontSize: 9,
                             fontWeight: FontWeight.w900,
@@ -82,5 +85,30 @@ class HorizontalPackageSelector extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  /// Calculate savings for a plan compared to the monthly plan.
+  /// Returns null if no savings badge should be shown.
+  String? _calculateSavings(PurchaseState state, package) {
+    if (!package.isYearly) return null;
+
+    // Find the monthly plan to compare against
+    final monthlyPlan = state.availablePackages
+        .where((p) => p.isMonthly)
+        .firstOrNull;
+
+    if (monthlyPlan == null) return 'BEST VALUE';
+
+    final monthlyMicros = monthlyPlan.priceAmountMicros;
+    final yearlyMonthlyEquiv = package.monthlyEquivalentMicros;
+
+    if (monthlyMicros <= 0) return 'BEST VALUE';
+
+    final savingsPercent = ((monthlyMicros - yearlyMonthlyEquiv) / monthlyMicros * 100).round();
+
+    if (savingsPercent > 0) {
+      return 'SAVES $savingsPercent%';
+    }
+    return 'BEST VALUE';
   }
 }

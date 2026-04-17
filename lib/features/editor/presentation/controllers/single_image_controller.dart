@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:reducer/core/models/image_settings.dart';
 import 'package:reducer/core/utils/image_processor.dart';
@@ -159,3 +160,5 @@ class SingleImageController extends _$SingleImageController {
     }
   }
 }
+
+final singleImageTabIndexProvider = StateProvider.autoDispose<int>((ref) => 0);

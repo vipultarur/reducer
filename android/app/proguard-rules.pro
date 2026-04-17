@@ -19,3 +19,15 @@
 -dontwarn io.flutter.embedding.**
 -dontwarn com.google.android.gms.**
 -ignorewarnings
+
+# ✅ FIX: Missing classes for Sidecar issues on some Android devices
+-dontwarn androidx.window.sidecar.**
+-dontwarn androidx.window.layout.**
+-keep class androidx.window.sidecar.** { *; }
+
+# ✅ FIX: Noise from Chromium/WebView
+-dontwarn android.webkit.PacProcessor
+-dontwarn android.webkit.TracingController
+
+# ✅ FIX: Missing classes for ContrastChangeListener (UI Mode)
+-dontwarn android.app.UiModeManager$ContrastChangeListener

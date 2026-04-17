@@ -1,25 +1,29 @@
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:iconsax/iconsax.dart';
-import 'package:gal/gal.dart';
-import 'dart:io';
-import 'package:reducer/core/theme/design_tokens.dart';
-import 'package:reducer/core/theme/app_theme.dart';
-import 'package:reducer/shared/widgets/app_button.dart';
-import 'package:reducer/shared/presentation/widgets/ads/banner_ad_widget.dart';
-import 'package:reducer/core/ads/ad_manager.dart';
+import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
+import 'package:reducer/features/exif/presentation/providers/exif_providers.dart';
+import 'package:go_router/go_router.dart';
 import 'package:reducer/core/services/permission_service.dart';
+import 'package:reducer/core/ads/ad_manager.dart';
+import 'package:reducer/shared/presentation/widgets/ads/banner_ad_widget.dart';
+import 'package:reducer/shared/widgets/app_button.dart';
+import 'package:reducer/core/theme/app_theme.dart';
+import 'package:reducer/core/theme/app_colors.dart';
+import 'dart:io';
+import 'package:gal/gal.dart';
+import 'package:iconsax/iconsax.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/material.dart';
 
-class ExifEraserScreen extends StatefulWidget {
+class ExifEraserScreen extends ConsumerStatefulWidget {
   const ExifEraserScreen({super.key});
 
   @override
-  State<ExifEraserScreen> createState() => _ExifEraserScreenState();
+  ConsumerState<ExifEraserScreen> createState() => _ExifEraserScreenState();
 }
 
-class _ExifEraserScreenState extends State<ExifEraserScreen> {
+class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
   XFile? _selectedImages;
   bool _isProcessing = false;
 
@@ -54,6 +58,15 @@ class _ExifEraserScreenState extends State<ExifEraserScreen> {
   Future<void> _cleanMetadata() async {
     if (_selectedImages == null) return;
 
+    final isPro = ref.read(premiumControllerProvider).isPro;
+    final credits = ref.read(exifCreditProvider).availableCredits;
+
+    // Hard Gate Check: Redirect to premium if out of credits
+    if (!isPro && credits <= 0) {
+      if (mounted) context.push('/premium');
+      return;
+    }
+
     setState(() => _isProcessing = true);
 
     try {
@@ -78,15 +91,14 @@ class _ExifEraserScreenState extends State<ExifEraserScreen> {
 
       if (result != null) {
         // Save to gallery
-        await Gal.putImage(result.path, album: 'ImageMaster Pro');
+        await Gal.putImage(result.path, album: 'Reducer');
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✓ Metadata removed and saved to Gallery!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          // Consume credit for free users
+          if (!isPro) {
+            await ref.read(exifCreditProvider.notifier).useCredit();
+          }
+          _showSuccessDialog(context);
         }
       } else {
         if (mounted) {
@@ -96,23 +108,85 @@ class _ExifEraserScreenState extends State<ExifEraserScreen> {
         }
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error cleaning metadata: $e')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error cleaning metadata: $e')),
+      );
     } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
+      if (!mounted) return;
+      setState(() => _isProcessing = false);
     }
+  }
+
+  void _showSuccessDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Iconsax.tick_circle5, color: Colors.green, size: 64),
+        title: const Text('Success!'),
+        content: const Text(
+          'Sensitive metadata has been completely removed. The clean image is now safe in your Gallery under the "Reducer" folder.',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() => _selectedImages = null);
+            },
+            child: const Text('Done'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() => _selectedImages = null);
+              context.go('/gallery');
+            },
+            child: const Text('View History'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final creditState = ref.watch(exifCreditProvider);
+    final isPro = ref.watch(premiumControllerProvider).isPro;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('EXIF Eraser'),
+        title: Text('EXIF Eraser', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 20)),
+        elevation: 0,
+        centerTitle: false,
+        actions: [
+          if (!isPro && !creditState.isLoading)
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(right: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: creditState.availableCredits > 0 
+                      ? Colors.green.withValues(alpha: 0.1) 
+                      : Colors.red.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: creditState.availableCredits > 0 ? Colors.green : Colors.red,
+                    width: 0.5,
+                  ),
+                ),
+                child: Text(
+                  '${creditState.availableCredits} Free Trial Left',
+                  style: TextStyle(
+                    color: creditState.availableCredits > 0 ? Colors.green : Colors.red,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -127,7 +201,7 @@ class _ExifEraserScreenState extends State<ExifEraserScreen> {
                     decoration: AppTheme.cardDecoration(context),
                     child: Column(
                       children: [
-                        const Icon(Iconsax.shield_tick, size: 64, color: DesignTokens.primaryBlue),
+                        const Icon(Iconsax.shield_tick, size: 64, color: AppColors.primary),
                         const SizedBox(height: 16),
                         const Text(
                           'Privacy First',
@@ -172,23 +246,21 @@ class _ExifEraserScreenState extends State<ExifEraserScreen> {
 
   Widget _buildUploadPlaceholder() {
     return GestureDetector(
-      onTap: () => AdManager().showInterstitialAd(
-        onComplete: _pickImage,
-      ),
+      onTap: _pickImage,
       child: Container(
         height: 200,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: DesignTokens.accentBlue,
+          color: AppColors.primaryContainer,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: DesignTokens.primaryBlue.withValues(alpha: 0.2), style: BorderStyle.solid),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), style: BorderStyle.solid),
         ),
         child: const Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Iconsax.add_square, size: 48, color: DesignTokens.primaryBlue),
+            Icon(Iconsax.add_square, size: 48, color: AppColors.primary),
             SizedBox(height: 12),
-            Text('Tap to select image', style: TextStyle(color: DesignTokens.primaryBlue, fontWeight: FontWeight.w500)),
+            Text('Tap to select image', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w500)),
           ],
         ),
       ),

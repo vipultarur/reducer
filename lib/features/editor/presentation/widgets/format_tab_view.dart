@@ -92,10 +92,14 @@ class FormatTabView extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withValues(alpha: 0.05) : (isDark ? Colors.white : Colors.white),
+          color: isSelected
+              ? AppColors.primary.withValues(alpha: 0.1)
+              : (isDark ? AppColors.darkSurface : AppColors.lightSurface),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppColors.primary : (isDark ? Colors.white10 : Colors.black12),
+            color: isSelected
+                ? AppColors.primary
+                : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
             width: 1.5,
           ),
         ),
@@ -106,7 +110,7 @@ class FormatTabView extends StatelessWidget {
               width: 12,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isSelected ? AppColors.primary : Colors.grey.shade300,
+                color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBorder : Colors.grey.shade300),
               ),
             ),
             const SizedBox(width: 12),
@@ -120,10 +124,18 @@ class FormatTabView extends StatelessWidget {
                     style: AppTextStyles.titleMedium(context).copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
-                      color: isDark ? Colors.white : Colors.black87,
+                      color: isSelected
+                          ? AppColors.primary
+                          : (isDark ? AppColors.onDarkSurface : AppColors.onLightSurface),
                     ),
                   ),
-                  Text(sub, style: AppTextStyles.labelSmall(context).copyWith(color: Colors.grey, fontSize: 10)),
+                  Text(
+                    sub,
+                    style: AppTextStyles.labelSmall(context).copyWith(
+                      color: isDark ? AppColors.onDarkSurfaceVariant : Colors.grey,
+                      fontSize: 10,
+                    ),
+                  ),
                 ],
               ),
             ),

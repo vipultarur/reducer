@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
-import 'package:reducer/core/theme/app_theme.dart';
+
+import '../../../../core/theme/app_text_styles.dart';
 
 class FeatureListTile extends StatelessWidget {
   final String title;
@@ -27,31 +28,82 @@ class FeatureListTile extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      decoration: AppTheme.cardDecoration(context),
-      child: ListTile(
-        onTap: onTap,
-        leading: Container(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+          width: 1,
+        ),
+        boxShadow: isDark ? [] : [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          child: Icon(
-            icon,
-            color: isPro && !hasAccess ? Colors.grey : AppColors.primary,
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(
+                    color: isPro && !hasAccess 
+                        ? (isDark ? Colors.white10 : Colors.grey.shade100)
+                        : AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isPro && !hasAccess ? Colors.grey : AppColors.primary,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            title,
+                            style: AppTextStyles.titleMedium(context).copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (isPro && !hasAccess) ...[
+                            const SizedBox(width: AppSpacing.sm),
+                            const Icon(Iconsax.lock, size: 14, color: Colors.grey),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: AppTextStyles.bodySmall(context).copyWith(
+                          color: isDark ? Colors.white54 : Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Iconsax.arrow_right_3,
+                  size: 16,
+                  color: isDark ? Colors.white24 : Colors.black26,
+                ),
+              ],
+            ),
           ),
         ),
-        title: Row(
-          children: [
-            Text(title),
-            if (isPro && !hasAccess) ...[
-              const SizedBox(width: AppSpacing.sm),
-              const Icon(Iconsax.lock, size: 14, color: Colors.grey),
-            ],
-          ],
-        ),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Iconsax.arrow_right_3, size: 16),
       ),
     );
   }

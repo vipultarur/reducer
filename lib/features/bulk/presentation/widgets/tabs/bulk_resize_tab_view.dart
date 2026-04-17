@@ -105,7 +105,7 @@ class BulkResizeTabView extends StatelessWidget {
                     const Spacer(),
                     Switch.adaptive(
                       value: settings.lockAspect,
-                      activeColor: AppColors.primary,
+                      activeTrackColor: AppColors.primary,
                       onChanged: (v) => onSettingsChanged(settings.copyWith(lockAspect: v)),
                     ),
                   ],

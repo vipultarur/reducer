@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:iconsax/iconsax.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 import 'package:reducer/core/ads/ad_manager.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:reducer/core/theme/app_colors.dart';
-import 'package:reducer/core/theme/app_spacing.dart';
-import 'package:reducer/core/theme/app_text_styles.dart';
 import 'package:reducer/features/auth/presentation/providers/auth_providers.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -23,8 +20,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 2500));
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 2000));
     _controller.forward();
+    
+    // Remove native splash as soon as first Flutter frame is painted
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FlutterNativeSplash.remove();
+    });
+    
     _initializeApp();
   }
 
@@ -35,35 +38,34 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   }
 
   Future<void> _initializeApp() async {
-    // Start min delay and heavy lifting concurrently
-    final minDelay = Future.delayed(const Duration(milliseconds: 1000));
+    // Parallelize branding delay and critical setup
+    final minDelay = Future.delayed(const Duration(milliseconds: 800));
     
     try {
-      // 1. Load premium state & sync it with AdManager
-      final premiumState = ref.read(premiumControllerProvider);
-      AdManager.isPremium = premiumState.isPro;
+      // 1. Resolve Auth first (needed for Premium check)
+      await _initializeAuth();
 
-      // 2. Initialize essential services concurrently
+      // 2. Fetch Premium status and sync to AdManager
+      // This ensures ads are ONLY initialized if the user is truly non-premium
+      await ref.read(premiumControllerProvider.notifier).fetchOffersAndCheckStatus();
+
+      // 3. Concurrent initialization of UI delays and Ads
       await Future.wait([
+        minDelay,
         AdManager.initialize(),
-        _initializeAuth(),
       ]);
-
-      // 3. Ensure we've at least shown the brand for a brief moment
-      await minDelay;
 
       if (!mounted) return;
 
-      // 4. Show Splash Ad (Handles consent internally)
+      // 2. Show App Open Ad (Handles timeout internally)
       await AdManager().showSplashAd(onDone: () {
         if (mounted) {
-          context.go('/home');
+          context.go('/');
         }
       });
     } catch (e) {
       debugPrint('Splash init error: $e');
-      await minDelay;
-      if (mounted) context.go('/home');
+      if (mounted) context.go('/');
     }
   }
 
@@ -77,83 +79,100 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: AppColors.splashGradient,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo Container with Glassmorphism
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.xl),
+      backgroundColor: const Color(0xFF020617), // Deepest dark blue for premium feel
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Optional: Subtle background pattern or vignette
+          Positioned.fill(
+            child: Container(
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withOpacity(0.1)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 30,
-                    offset: const Offset(0, 10),
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 1.2,
+                  colors: [
+                    const Color(0xFF0F172A).withValues(alpha: 0.8),
+                    const Color(0xFF020617),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Central Logo
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Hero(
+                  tag: 'app_logo',
+                  child: Image.asset(
+                    'assets/logo/reducer_logo_bg.png',
+                    width: 180,
+                    height: 180,
+                    fit: BoxFit.contain,
                   ),
-                ],
-              ),
-              child: const Icon(
-                Iconsax.gallery_edit,
-                size: AppSpacing.iconXl4,
-                color: Color(0xFFEAB308), // Using the premium yellow/gold
-              ),
-            )
-                .animate()
-                .scale(delay: 200.ms, duration: 600.ms, curve: Curves.easeOutBack)
-                .fadeIn(delay: 200.ms, duration: 600.ms),
+                )
+                    .animate(onPlay: (controller) => controller.repeat(reverse: true))
+                    .scale(
+                      duration: 2000.ms,
+                      begin: const Offset(1, 1),
+                      end: const Offset(1.05, 1.05),
+                      curve: Curves.easeInOut,
+                    )
+                    .shimmer(delay: 3000.ms, duration: 1500.ms, color: Colors.white24),
+                
+                const SizedBox(height: 48),
+                
+                // Minimalist App Name (if not in logo)
+                Text(
+                  'REDUCER',
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w200,
+                    letterSpacing: 12,
+                    fontSize: 24,
+                  ),
+                )
+                    .animate()
+                    .fadeIn(delay: 500.ms, duration: 1000.ms)
+                    .slideY(begin: 0.3, end: 0, delay: 500.ms, duration: 1000.ms, curve: Curves.easeOutCubic),
+              ],
+            ),
+          ),
 
-            const SizedBox(height: AppSpacing.xl3),
-
-            // App Title
-            Text(
-              'ImageMaster',
-              style: AppTextStyles.displaySmall(context).copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -1,
-              ),
-            )
-                .animate()
-                .fadeIn(delay: 600.ms, duration: 600.ms)
-                .slideY(begin: 0.2, end: 0, delay: 600.ms, duration: 600.ms, curve: Curves.easeOut),
-
-            // Subtitle
-            Text(
-              'PRO EDITING SUITE',
-              style: AppTextStyles.titleMedium(context).copyWith(
-                color: Colors.white.withOpacity(0.5),
-                letterSpacing: 4,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            )
-                .animate()
-                .fadeIn(delay: 800.ms, duration: 600.ms)
-                .slideY(begin: 0.2, end: 0, delay: 800.ms, duration: 600.ms, curve: Curves.easeOut),
-
-            const SizedBox(height: AppSpacing.xl6),
-
-            // Loading Indicator
-            const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEAB308)),
-              strokeWidth: 2,
-            )
-             .animate()
-             .fadeIn(delay: 1200.ms, duration: 600.ms),
-          ],
-        ),
+          // Bottom Loading / Status
+          Positioned(
+            bottom: 60,
+            left: 0,
+            right: 0,
+            child: Column(
+              children: [
+                const SizedBox(
+                  width: 40,
+                  height: 2,
+                  child: LinearProgressIndicator(
+                    backgroundColor: Colors.white10,
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEAB308)),
+                  ),
+                )
+                    .animate()
+                    .fadeIn(delay: 1000.ms)
+                    .scaleX(begin: 0, end: 1, delay: 1000.ms, duration: 800.ms),
+                const SizedBox(height: 16),
+                Text(
+                  'POWERED BY AI',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 2,
+                  ),
+                ).animate().fadeIn(delay: 1500.ms),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -16,8 +16,17 @@ class AdManager {
   AdManager._internal();
 
   // ── Premium flag ──────────────────────────────────────────────────────────
-  /// Set to [true] to suppress all ads (e.g. after a successful purchase).
-  static bool isPremium = false;
+  /// Private premium status to prevent external tampering.
+  static bool _isPremium = false;
+  
+  /// Public getter to check status.
+  static bool get isPremium => _isPremium;
+
+  /// Internal update method for authorized use only (PurchaseNotifier).
+  static void updatePremiumStatus(bool pro) {
+    _isPremium = pro;
+    debugPrint('[AdManager] Global premium status synced: $pro');
+  }
 
   // ── Ad-unit ID getters (used by widgets) ──────────────────────────────────
   static String get bannerAdUnitId => AdIds.bannerId;
@@ -26,35 +35,42 @@ class AdManager {
   // ── SDK Initializer ───────────────────────────────────────────────────────
   /// Initializes the SDK AFTER consent check. Returns [true] if ads can be requested.
   static Future<bool> initialize() async {
-    // 1. Gather consent (GDPR check)
-    await ConsentManager().gatherConsent();
+    // 1. Parallelize consent gathering and basic SDK warmup
+    try {
+      await ConsentManager().gatherConsent();
+      
+      final canRequest = await ConsentManager().canRequestAds();
+      if (!canRequest) return false;
 
-    // 2. Check if we have consent to request ads
-    final canRequest = await ConsentManager().canRequestAds();
-    if (!canRequest) {
-      debugPrint(
-          '[AdManager] Ads cannot be requested yet. Consent not gathered.');
+      await MobileAds.instance.initialize();
+
+      // 4. Preload ads in background (non-blocking)
+      if (!_isPremium) {
+        AdManager()._scheduleLoadEssential();
+      }
+      return true;
+    } catch (e) {
+      debugPrint('[AdManager] Initialization failed: $e');
       return false;
     }
-
-    // 3. Initialize the SDK
-    await MobileAds.instance.initialize();
-
-    // 4. Preload ads if not premium
-    if (!isPremium) {
-      AdManager()._scheduleLoadAll();
-    }
-
-    return true;
   }
 
-  void _scheduleLoadAll() {
-    // Staggered load to avoid heavy burst of requests
-    Future.delayed(const Duration(seconds: 1), () {
-      loadInterstitialAd();
-      loadAppOpenAd();
-      getCachedBanner(); // Preload banner
-      getCachedNative(); // Preload native
+  void _scheduleLoadEssential() {
+    // Only load the App Open ad immediately as it is needed for the splash screen.
+    // Stagger others to reduce CPU/Network burst during startup.
+    loadAppOpenAd();
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!_isPremium) {
+        loadInterstitialAd();
+      }
+    });
+
+    Future.delayed(const Duration(seconds: 4), () {
+      if (!_isPremium) {
+        getCachedBanner(); // Preload banner later
+        getCachedNative(); // Preload native later
+      }
     });
   }
 
@@ -63,7 +79,7 @@ class AdManager {
   bool _isInterstitialLoading = false;
   bool _isShowing = false;
   DateTime? _lastInterstitialShownAt;
-  static const Duration _interstitialMinGap = Duration(seconds: 45);
+  static const Duration _interstitialMinGap = Duration(seconds: 30);
 
   bool get isInterstitialReady => _interstitialAd != null && !_isShowing;
 
@@ -140,6 +156,8 @@ class AdManager {
   AppOpenAd? _appOpenAd;
   bool _isAppOpenLoading = false;
   DateTime? _appOpenLoadTime;
+  DateTime? _lastAppOpenShownAt;
+  static const Duration _appOpenMinGap = Duration(seconds: 30);
 
   bool get isAppOpenReady {
     if (isPremium || _appOpenAd == null || _appOpenLoadTime == null) {
@@ -191,11 +209,20 @@ class AdManager {
       return;
     }
 
+    // New: Enforcement of 30-second gap for App Open ads
+    if (_lastAppOpenShownAt != null &&
+        DateTime.now().difference(_lastAppOpenShownAt!) < _appOpenMinGap) {
+      debugPrint('[AdManager] App Open gap not met, skipping...');
+      onDone();
+      return;
+    }
+
     if (isAppOpenReady) {
       _appOpenAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
           _appOpenAd = null;
+          _lastAppOpenShownAt = DateTime.now(); // Track when shown
           onDone();
         },
         onAdFailedToShowFullScreenContent: (ad, error) {
@@ -206,15 +233,15 @@ class AdManager {
       );
       await _appOpenAd!.show();
     } else {
-      // If not ready, load and wait up to 3s (Splash optimization)
+      // If not ready, load and wait max 2 seconds (Splash optimization)
       if (!_isAppOpenLoading) {
         loadAppOpenAd();
       }
 
       int timerCount = 0;
-      while (_isAppOpenLoading && timerCount < 30) {
-        // Wait max 3 seconds
-        await Future.delayed(const Duration(milliseconds: 100));
+      // Faster polling (50ms) and shorter timeout (2s) for better responsiveness
+      while (_isAppOpenLoading && timerCount < 40) {
+        await Future.delayed(const Duration(milliseconds: 50));
         timerCount++;
       }
 
@@ -288,7 +315,7 @@ class AdManager {
       request: const AdRequest(),
       nativeTemplateStyle: NativeTemplateStyle(
         templateType: TemplateType.medium,
-        mainBackgroundColor: Colors.white,
+        mainBackgroundColor: isPremium ? Colors.transparent : (WidgetsBinding.instance.platformDispatcher.platformBrightness == Brightness.dark ? const Color(0xFF1C1C1E) : Colors.white),
         cornerRadius: 12.0,
       ),
       listener: NativeAdListener(
@@ -352,8 +379,10 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
     _lastState = state;
 
     if (state == AppLifecycleState.resumed) {
-      debugPrint('[Lifecycle] App resumed');
-      // Potentially show App Open Ad here if not on Splash/Auth
+      debugPrint('[Lifecycle] App resumed, showing App Open ad if ready');
+      AdManager().showSplashAd(onDone: () {
+        debugPrint('[Lifecycle] App Open ad completed or skipped');
+      });
     }
   }
 }

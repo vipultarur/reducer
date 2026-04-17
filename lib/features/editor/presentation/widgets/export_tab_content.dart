@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:reducer/core/models/image_settings.dart';
-import 'package:reducer/core/theme/design_tokens.dart';
+import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_theme.dart';
 import 'package:reducer/core/utils/target_dimension_calculator.dart';
 import 'package:reducer/shared/widgets/app_button.dart';
@@ -109,7 +109,7 @@ class _ExportTabContentState extends State<ExportTabContent> {
                         _showBeforeImage ? 'Show After' : 'Show Before',
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: DesignTokens.primaryBlue,
+                        backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 16,
@@ -192,7 +192,7 @@ class _ExportTabContentState extends State<ExportTabContent> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: DesignTokens.primaryBlue.withValues(alpha: 0.05),
+                    color: AppColors.primary.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -207,7 +207,7 @@ class _ExportTabContentState extends State<ExportTabContent> {
                       _exportInfoRow(
                         'Resolution',
                         '${_selectedDimensions.width} x ${_selectedDimensions.height}',
-                        valueColor: DesignTokens.primaryBlue,
+                        valueColor: AppColors.primary,
                       ),
                       const SizedBox(height: 8),
                       _exportInfoRow(
@@ -217,7 +217,7 @@ class _ExportTabContentState extends State<ExportTabContent> {
                             widget.processedImageBytes!.length <
                                 widget.originalSize
                             ? Colors.green
-                            : DesignTokens.primaryBlue,
+                            : AppColors.primary,
                       ),
                       if (widget.processedImageBytes!.length <
                           widget.originalSize) ...[
@@ -276,10 +276,10 @@ class _ExportTabContentState extends State<ExportTabContent> {
     );
   }
 
-  String _formatFileSize(int? bytes) {
-    if (bytes == null) return '—';
+  String _formatFileSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(2)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+    final kb = bytes / 1024;
+    final mb = kb / 1024;
+    return '${mb.toStringAsFixed(2)} MB (${kb.toStringAsFixed(0)} KB)';
   }
 }

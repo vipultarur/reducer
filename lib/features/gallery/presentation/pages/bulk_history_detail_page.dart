@@ -6,6 +6,11 @@ import 'package:iconsax/iconsax.dart';
 import 'package:reducer/features/gallery/data/models/history_item.dart';
 import 'package:reducer/core/theme/app_theme.dart';
 import 'package:intl/intl.dart';
+import 'package:gal/gal.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:reducer/core/services/permission_service.dart';
+import 'package:reducer/core/theme/app_colors.dart';
+import 'package:reducer/shared/presentation/widgets/ads/banner_ad_widget.dart';
 
 class BulkHistoryDetailScreen extends StatefulWidget {
   final HistoryItem item;
@@ -44,6 +49,7 @@ class _BulkHistoryDetailScreenState extends State<BulkHistoryDetailScreen> {
       ),
       body: Column(
         children: [
+          const BannerAdWidget(),
           // Header summary card
           Container(
             padding: const EdgeInsets.all(20),
@@ -140,6 +146,8 @@ class _BulkHistoryDetailScreenState extends State<BulkHistoryDetailScreen> {
                                     width: 60,
                                     height: 60,
                                     fit: BoxFit.cover,
+                                    cacheWidth: 120, // 2x for retina
+                                    cacheHeight: 120,
                                   )
                                 : Container(
                                     width: 60,
@@ -162,6 +170,35 @@ class _BulkHistoryDetailScreenState extends State<BulkHistoryDetailScreen> {
                               }
                               return const Text('...');
                             },
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Iconsax.share, size: 20, color: AppColors.secondary),
+                                onPressed: () async {
+                                  if (file.existsSync()) {
+                                    await Share.shareXFiles([XFile(path)]);
+                                  }
+                                },
+                              ),
+                              IconButton(
+                                icon: const Icon(Iconsax.save_2, size: 20, color: AppColors.primary),
+                                onPressed: () async {
+                                  if (file.existsSync()) {
+                                    final ok = await PermissionService.instance.ensurePhotosPermission(context);
+                                    if (ok) {
+                                      await Gal.putImage(path, album: 'Reducer');
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Saved to gallery!'), behavior: SnackBarBehavior.floating),
+                                        );
+                                      }
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
                           ),
                         ),
                       );

@@ -1,12 +1,14 @@
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:reducer/features/auth/data/services/app_auth_service.dart';
 import 'package:reducer/features/auth/data/services/cloudinary_service.dart';
 import 'package:reducer/features/auth/data/services/user_service.dart';
 import 'package:reducer/features/auth/domain/models/user_model.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
+import 'package:reducer/core/services/notification_service.dart';
 
 // Service Providers
 final authServiceProvider = Provider((ref) => AIImageProAuthService());
@@ -61,6 +63,16 @@ class AuthController extends StateNotifier<bool> {
       await _ref
           .read(premiumControllerProvider.notifier)
           .fetchOffersAndCheckStatus();
+
+      // Show welcome notification
+      debugPrint('[AuthController] Successful registration, triggering welcome notification');
+      Future.delayed(const Duration(milliseconds: 500), () {
+        NotificationService().showNotification(
+          id: 1,
+          title: 'Welcome to Reducer! 🚀',
+          body: 'Start reducing your images and videos with ease.',
+        );
+      });
     } on FirebaseAuthException catch (e) {
       throw _handleAuthError(e);
     } catch (e) {
@@ -102,7 +114,14 @@ class AuthController extends StateNotifier<bool> {
       final credential = await _ref
           .read(authServiceProvider)
           .signInWithGoogle();
-      final user = credential?.user;
+      
+      // If credential is null, user cancelled the flow
+      if (credential == null) {
+        state = false;
+        return;
+      }
+      
+      final user = credential.user;
       if (user == null) {
         throw 'Google Sign-In failed. Please try again.';
       }
@@ -116,10 +135,23 @@ class AuthController extends StateNotifier<bool> {
       await _ref
           .read(premiumControllerProvider.notifier)
           .fetchOffersAndCheckStatus();
+
+      // Show welcome notification if it's a new registration via Google
+      if (credential.additionalUserInfo?.isNewUser == true) {
+        debugPrint('[AuthController] New Google user registered, triggering welcome notification');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          NotificationService().showNotification(
+            id: 1,
+            title: 'Welcome to Reducer! 🚀',
+            body: 'Start reducing your images and videos with ease.',
+          );
+        });
+      }
     } on FirebaseAuthException catch (e) {
       throw _handleAuthError(e);
     } catch (e) {
-      throw 'Google Sign-In failed: $e';
+      debugPrint('[AuthController] Google Sign-In error: $e');
+      throw 'Google Sign-In failed: ${e.toString()}';
     } finally {
       state = false;
     }
@@ -176,8 +208,28 @@ class AuthController extends StateNotifier<bool> {
   Future<void> logout() async {
     state = true;
     try {
-      await _ref.read(authServiceProvider).signOut();
+      final authService = _ref.read(authServiceProvider);
+      await authService.signOut();
       await _ref.read(premiumControllerProvider.notifier).clearProStatus();
+      
+      // Auto-re-sign-in anonymously to maintain a session for guest features
+      await authService.signInAnonymously();
+    } finally {
+      state = false;
+    }
+  }
+
+  /// Sends a password reset email to the given address.
+  Future<void> sendPasswordResetEmail(String email) async {
+    if (email.trim().isEmpty) throw 'Please enter your email address.';
+    
+    state = true;
+    try {
+      await _ref.read(authServiceProvider).sendPasswordResetEmail(email.trim());
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthError(e);
+    } catch (e) {
+      throw 'Failed to send reset email: $e';
     } finally {
       state = false;
     }
