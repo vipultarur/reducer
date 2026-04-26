@@ -188,3 +188,4 @@ class PremiumPlan {
   @override
   String toString() => 'PremiumPlan(${product.id}, ${offer?.basePlanId ?? "no-offer"}, $price)';
 }
+

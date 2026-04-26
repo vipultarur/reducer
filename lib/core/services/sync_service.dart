@@ -67,7 +67,8 @@ class FirestoreSyncService {
     return _historyCollection!
         .orderBy('timestamp', descending: true)
         .limit(limit) 
-        .snapshots()
+        .snapshots(includeMetadataChanges: true)
+        .distinct()
         .map((snapshot) {
       return snapshot.docs.map((doc) {
         return HistoryItem.fromJson(doc.data() as Map<String, dynamic>);
@@ -100,3 +101,4 @@ class FirestoreSyncService {
     }
   }
 }
+

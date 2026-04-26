@@ -33,7 +33,7 @@ class HomeScreen extends ConsumerWidget {
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
               sliver: SliverList(
-                delegate: SliverChildListDelegate([
+                delegate: SliverChildListDelegate.fixed([
                   if (!isPro) ...[
                     const PremiumPromoCard(),
                     const SizedBox(height: AppSpacing.xl2),
@@ -57,3 +57,4 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 }
+

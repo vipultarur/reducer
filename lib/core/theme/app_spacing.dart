@@ -3,6 +3,8 @@ class AppSpacing {
   AppSpacing._();
 
   // ── Spacing ───────────────────────────────────────────────────────────────────
+  // Using static const values to enable app-wide 'const' widget constructors.
+  // This drastically reduces rebuild overhead in complex lists.
   static const double xs2 = 2.0;
   static const double xs = 4.0;
   static const double sm = 8.0;
@@ -40,3 +42,5 @@ class AppSpacing {
   static const double iconXl3 = 64.0;
   static const double iconXl4 = 80.0;
 }
+
+

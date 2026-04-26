@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 import 'package:reducer/shared/widgets/app_button.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+import 'package:iconsax/iconsax.dart';
 
 class NoPlansState extends ConsumerWidget {
   const NoPlansState({super.key});
@@ -31,39 +34,33 @@ class NoPlansState extends ConsumerWidget {
           ),
           Center(
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: EdgeInsets.all(24.0.r),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
-                    Icons.inventory_2_outlined,
-                    size: 64,
-                    color: Color(0xFFFACC15),
-                  ).animate().scale(duration: 600.ms, curve: Curves.elasticOut),
-                  const SizedBox(height: 24),
-                  const Text(
-                    "No membership plans available",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
+                  Container(
+                    padding: EdgeInsets.all(20.r),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
+                    child: Icon(Iconsax.info_circle, size: 40.r, color: Colors.white70),
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "We're having trouble connecting to the store. Please check your internet or try again later.",
+                  SizedBox(height: 24.h),
+                  Text(
+                    AppLocalizations.of(context)!.noPlansAvailable,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white60,
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 18.sp, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 32),
+                  SizedBox(height: 8.h),
+                  Text(
+                    AppLocalizations.of(context)!.tryAgainLater,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white60, fontSize: 14.sp),
+                  ),
+                  SizedBox(height: 40.h),
                   AppButton(
-                    label: "Re-check Store",
-                    icon: Icons.refresh,
+                    label: AppLocalizations.of(context)!.retry,
                     onPressed: () => ref.read(premiumControllerProvider.notifier).fetchOffersAndCheckStatus(),
                   ),
                 ],
@@ -75,3 +72,4 @@ class NoPlansState extends ConsumerWidget {
     );
   }
 }
+

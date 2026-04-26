@@ -32,7 +32,7 @@ class AppButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
 
-    Widget content = Row(
+    final Widget content = Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -139,9 +139,10 @@ class AppButton extends StatelessWidget {
       case AppButtonStyle.ghost:
         return AppColors.primary;
       case AppButtonStyle.secondary:
-        return isDark ? Colors.white : Colors.black87;
+        return isDark ? AppColors.onDarkSurface : AppColors.onLightSurface;
       default:
-        return Colors.white;
+        return AppColors.onPrimary;
     }
   }
 }
+

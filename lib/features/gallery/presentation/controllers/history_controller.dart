@@ -35,7 +35,8 @@ final historyControllerProvider =
     );
 
 class HistoryController extends AutoDisposeAsyncNotifier<HistoryState> {
-  static const _storageKey = 'edit_history_secure_v1';
+  static const _secureStorageKey = 'edit_history_secure_v1';
+  static const _sharedPrefsKey = 'edit_history_v3';
   static const _legacyKey = 'edit_history_v2';
   static const _secureStorage = FlutterSecureStorage();
 
@@ -98,16 +99,19 @@ class HistoryController extends AutoDisposeAsyncNotifier<HistoryState> {
       HistoryState(items: [], isLoading: false),
     );
 
-    await _secureStorage.delete(key: _storageKey);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_sharedPrefsKey);
   }
 
   Future<List<HistoryItem>> _loadItemsFromStorage() async {
     try {
-      // 1. Migration from insecure storage if necessary
-      await _migrateFromLegacyStorage();
+      // 1. Migration from insecure/secure storage if necessary
+      await _migrateToSharedPreferences();
 
-      // 2. Read from secure storage
-      final historyJsonRaw = await _secureStorage.read(key: _storageKey);
+      // 2. Read from shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      final historyJsonRaw = prefs.getString(_sharedPrefsKey);
+      
       if (historyJsonRaw == null || historyJsonRaw.isEmpty) {
         return const [];
       }
@@ -115,7 +119,7 @@ class HistoryController extends AutoDisposeAsyncNotifier<HistoryState> {
       final historyJson = (jsonDecode(historyJsonRaw) as List).cast<String>();
       return compute(_decodeHistory, historyJson);
     } catch (e) {
-      debugPrint('[Security] Failed to load secure history: $e');
+      debugPrint('[Storage] Failed to load history: $e');
       return const [];
     }
   }
@@ -123,35 +127,55 @@ class HistoryController extends AutoDisposeAsyncNotifier<HistoryState> {
   Future<void> _saveToStorage(List<HistoryItem> items) async {
     try {
       final historyJson = await compute(_encodeHistory, items);
-      await _secureStorage.write(
-        key: _storageKey,
-        value: jsonEncode(historyJson),
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _sharedPrefsKey,
+        jsonEncode(historyJson),
       );
     } catch (e) {
-      debugPrint('[Security] Failed to save secure history: $e');
+      debugPrint('[Storage] Failed to save history: $e');
     }
   }
 
-  Future<void> _migrateFromLegacyStorage() async {
+  Future<void> _migrateToSharedPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (!prefs.containsKey(_legacyKey)) return;
+      
+      // If we already have the new key, no migration needed
+      if (prefs.containsKey(_sharedPrefsKey)) return;
 
-      final historyJson = prefs.getStringList(_legacyKey);
-      if (historyJson != null && historyJson.isNotEmpty) {
-        debugPrint('[Security] Migrating legacy history to secure storage...');
-        // Save to secure storage
-        await _secureStorage.write(
-          key: _storageKey,
-          value: jsonEncode(historyJson),
-        );
+      String? historyToMigrate;
+
+      // 1. Try to get from Secure Storage (v1)
+      try {
+        historyToMigrate = await _secureStorage.read(key: _secureStorageKey);
+      } catch (e) {
+        debugPrint('[Storage] Could not read from secure storage: $e');
       }
 
-      // Cleanup legacy storage
+      // 2. If secure storage is empty, check old legacy key (v2)
+      if (historyToMigrate == null || historyToMigrate.isEmpty) {
+        if (prefs.containsKey(_legacyKey)) {
+          final legacyList = prefs.getStringList(_legacyKey);
+          if (legacyList != null && legacyList.isNotEmpty) {
+            historyToMigrate = jsonEncode(legacyList);
+          }
+        }
+      }
+
+      // 3. If we found data, save it to the new key
+      if (historyToMigrate != null && historyToMigrate.isNotEmpty) {
+        debugPrint('[Storage] Migrating history to SharedPreferences...');
+        await prefs.setString(_sharedPrefsKey, historyToMigrate);
+      }
+
+      // 4. Cleanup old storage
+      await _secureStorage.delete(key: _secureStorageKey);
       await prefs.remove(_legacyKey);
-      debugPrint('[Security] Legacy history migration complete.');
+      
+      debugPrint('[Storage] History migration complete.');
     } catch (e) {
-      debugPrint('[Security] Migration failed: $e');
+      debugPrint('[Storage] Migration failed: $e');
     }
   }
 }
@@ -175,3 +199,4 @@ List<HistoryItem> _decodeHistory(List<String> historyJson) {
   items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
   return items;
 }
+

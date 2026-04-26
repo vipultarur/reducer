@@ -13,7 +13,7 @@ class SettingsSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return  Padding(
       padding: const EdgeInsets.only(left: AppSpacing.sm, bottom: AppSpacing.sm),
       child: Text(
         title,
@@ -22,3 +22,4 @@ class SettingsSectionHeader extends StatelessWidget {
     );
   }
 }
+

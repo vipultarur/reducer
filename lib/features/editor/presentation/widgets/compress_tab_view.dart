@@ -3,6 +3,8 @@ import 'package:reducer/core/models/image_settings.dart';
 import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class CompressTabView extends StatefulWidget {
   final ImageSettings settings;
@@ -50,6 +52,7 @@ class _CompressTabViewState extends State<CompressTabView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
@@ -59,7 +62,7 @@ class _CompressTabViewState extends State<CompressTabView> {
         children: [
           _buildCard(
             context,
-            title: 'ENTER TARGET FILE SIZE',
+            title: l10n.targetFileSize.toUpperCase(),
             child: Row(
               children: [
                 Expanded(
@@ -69,22 +72,24 @@ class _CompressTabViewState extends State<CompressTabView> {
                     style: AppTextStyles.titleMedium(context),
                     decoration: InputDecoration(
                       filled: true,
-                      fillColor: isDark ? Colors.black26 : Colors.white,
+                      fillColor: isDark ? AppColors.darkSurfaceVariant : Colors.white,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(12.r),
+                        borderSide: isDark ? const BorderSide(color: Colors.white10) : const BorderSide(color: AppColors.lightBorder),
                       ),
-                      hintText: 'e.g. 2.5',
+                      hintText: l10n.sizeHint,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
                     ),
                     onChanged: (value) => _updateSettings(),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Container(
-                  padding: const EdgeInsets.all(4),
+                  padding: EdgeInsets.all(4.r),
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.black26 : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
+                    color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(color: isDark ? Colors.white10 : AppColors.lightBorder),
                   ),
                   child: Row(
                     children: [
@@ -99,32 +104,38 @@ class _CompressTabViewState extends State<CompressTabView> {
           const SizedBox(height: AppSpacing.xl),
           _buildCard(
             context,
-            title: 'IMAGE QUALITY',
+            title: l10n.imageQuality.toUpperCase(),
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Smaller file', style: AppTextStyles.labelSmall(context)),
+                    Text(l10n.smallerFile, style: AppTextStyles.labelSmall(context).copyWith(color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant)),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 4.h),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12.r),
                       ),
                       child: Text(
                         '${widget.settings.quality.toInt()}%',
-                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12.sp,
+                        ),
                       ),
                     ),
-                    Text('Higher quality', style: AppTextStyles.labelSmall(context)),
+                    Text(l10n.higherQuality, style: AppTextStyles.labelSmall(context).copyWith(color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant)),
                   ],
                 ),
+                SizedBox(height: 8.h),
                 Slider(
                   value: widget.settings.quality,
                   min: 1,
                   max: 100,
                   activeColor: AppColors.primary,
+                  inactiveColor: isDark ? Colors.white10 : AppColors.lightBorder,
                   onChanged: (v) => widget.onSettingsChanged(widget.settings.copyWith(quality: v)),
                 ),
               ],
@@ -143,18 +154,18 @@ class _CompressTabViewState extends State<CompressTabView> {
         Text(
           title,
           style: AppTextStyles.labelSmall(context).copyWith(
-            letterSpacing: 1.2,
+            letterSpacing: 1.2.w,
             fontWeight: FontWeight.w800,
-            color: isDark ? Colors.white60 : Colors.black54,
+            color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurfaceVariant : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, width: 1),
           ),
           child: child,
         ),
@@ -166,19 +177,24 @@ class _CompressTabViewState extends State<CompressTabView> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
         decoration: BoxDecoration(
           color: isSelected ? (isDark ? Colors.white10 : Colors.white) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          boxShadow: isSelected && !isDark ? [
+            BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4, offset: const Offset(0, 2))
+          ] : null,
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? AppColors.primary : Colors.grey,
+            color: isSelected ? AppColors.primary : (isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant),
             fontWeight: FontWeight.bold,
+            fontSize: 12.sp,
           ),
         ),
       ),
     );
   }
 }
+

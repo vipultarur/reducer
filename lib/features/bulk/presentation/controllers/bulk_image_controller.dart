@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:reducer/core/models/image_settings.dart';
 import 'package:reducer/core/utils/image_processor.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:reducer/core/services/notification_service.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 part 'bulk_image_controller.g.dart';
 
@@ -66,7 +69,7 @@ class BulkImageController extends _$BulkImageController {
     );
   }
 
-  Future<void> processAll(bool isPro) async {
+  Future<void> processAll(bool isPro, AppLocalizations l10n) async {
     if (state.selectedImages.isEmpty) return;
 
     // Internal Security Guard: Enforce 50-image limit for non-premium even if UI is bypassed
@@ -118,6 +121,34 @@ class BulkImageController extends _$BulkImageController {
     }
 
     state = state.copyWith(isProcessing: false);
+
+    // Trigger completion notification
+    if (state.processedResults.isNotEmpty) {
+      final firstResult = state.processedResults.values.firstWhere((f) => f != null, orElse: () => null);
+      if (firstResult != null) {
+        final original = _formatSize(state.totalOriginalSize);
+        final compressed = _formatSize(state.totalCompressedSize);
+        final reduction = ((1 - (state.totalCompressedSize / state.totalOriginalSize)) * 100).toStringAsFixed(1);
+
+        unawaited(NotificationService().showImageNotification(
+          id: 101,
+          title: l10n.optimizationComplete,
+          body: l10n.bulkOptimizationResult(
+            state.selectedImages.length,
+            original,
+            compressed,
+            reduction,
+          ),
+          imagePath: firstResult.path,
+        ));
+      }
+    }
+  }
+
+  String _formatSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
   void updateSettings(ImageSettings settings) {
@@ -128,3 +159,4 @@ class BulkImageController extends _$BulkImageController {
     state = BulkImageState();
   }
 }
+

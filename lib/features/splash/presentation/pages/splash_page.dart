@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 import 'package:reducer/core/ads/ad_manager.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:reducer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:reducer/core/routes/app_startup_provider.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -58,14 +60,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
       if (!mounted) return;
 
       // 2. Show App Open Ad (Handles timeout internally)
-      await AdManager().showSplashAd(onDone: () {
+      await AdManager().showSplashAd(onDone: () async {
         if (mounted) {
-          context.go('/');
+          ref.read(appStartupProvider.notifier).setInitialized();
         }
       });
     } catch (e) {
       debugPrint('Splash init error: $e');
-      if (mounted) context.go('/');
+      if (mounted) {
+        ref.read(appStartupProvider.notifier).setInitialized();
+      }
     }
   }
 
@@ -108,8 +112,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                   tag: 'app_logo',
                   child: Image.asset(
                     'assets/logo/reducer_logo_bg.png',
-                    width: 180,
-                    height: 180,
+                    width: 180.r,
+                    height: 180.r,
                     fit: BoxFit.contain,
                   ),
                 )
@@ -122,16 +126,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                     )
                     .shimmer(delay: 3000.ms, duration: 1500.ms, color: Colors.white24),
                 
-                const SizedBox(height: 48),
+                SizedBox(height: 48.h),
                 
                 // Minimalist App Name (if not in logo)
                 Text(
-                  'REDUCER',
+                  AppLocalizations.of(context)!.appTitle,
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w200,
-                    letterSpacing: 12,
-                    fontSize: 24,
+                    letterSpacing: 12.w,
+                    fontSize: 24.sp,
                   ),
                 )
                     .animate()
@@ -143,15 +147,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
 
           // Bottom Loading / Status
           Positioned(
-            bottom: 60,
+            bottom: 60.h,
             left: 0,
             right: 0,
             child: Column(
               children: [
-                const SizedBox(
-                  width: 40,
-                  height: 2,
-                  child: LinearProgressIndicator(
+                SizedBox(
+                  width: 40.w,
+                  height: 2.h,
+                  child: const LinearProgressIndicator(
                     backgroundColor: Colors.white10,
                     valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEAB308)),
                   ),
@@ -159,14 +163,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
                     .animate()
                     .fadeIn(delay: 1000.ms)
                     .scaleX(begin: 0, end: 1, delay: 1000.ms, duration: 800.ms),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 Text(
-                  'POWERED BY AI',
+                  AppLocalizations.of(context)!.poweredByAi,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.3),
-                    fontSize: 9,
+                    fontSize: 9.sp,
                     fontWeight: FontWeight.w600,
-                    letterSpacing: 2,
+                    letterSpacing: 2.w,
                   ),
                 ).animate().fadeIn(delay: 1500.ms),
               ],
@@ -177,3 +181,4 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
     );
   }
 }
+

@@ -6,6 +6,7 @@ import 'package:reducer/core/ads/ad_manager.dart';
 import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 import 'feature_list_tile.dart';
 import 'login_required_dialog.dart';
 
@@ -21,12 +22,13 @@ class ProToolsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Text('Advanced Tools', style: AppTextStyles.titleLarge(context)),
+            Text(l10n.advancedTools, style: AppTextStyles.titleLarge(context)),
             const Spacer(),
             if (!isPro)
               Container(
@@ -39,7 +41,7 @@ class ProToolsSection extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
                 child: Text(
-                  'PRO',
+                  l10n.proBadge,
                   style: AppTextStyles.badgeLabel(context).copyWith(
                     color: AppColors.premium,
                   ),
@@ -49,8 +51,8 @@ class ProToolsSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         FeatureListTile(
-          title: 'Bulk Processing',
-          subtitle: 'Process up to 50 images at once',
+          title: l10n.bulkProcessing,
+          subtitle: l10n.bulkSubtitle,
           icon: Iconsax.layer,
           isPro: true,
           hasAccess: isPro,
@@ -59,8 +61,8 @@ class ProToolsSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         FeatureListTile(
-          title: 'EXIF Eraser',
-          subtitle: 'Remove metadata for privacy',
+          title: l10n.exifEraser,
+          subtitle: l10n.exifSubtitle,
           icon: Iconsax.shield_tick,
           isPro: false,
           hasAccess: true,
@@ -70,13 +72,13 @@ class ProToolsSection extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
         FeatureListTile(
-          title: 'Edit History',
-          subtitle: 'View and export past edits',
+          title: l10n.viewHistory,
+          subtitle: l10n.viewHistorySubtitle,
           icon: Iconsax.clock,
           isPro: false,
           hasAccess: true,
           onTap: () => AdManager().showInterstitialAd(
-            onComplete: () => context.push('/gallery'),
+            onComplete: () => context.go('/gallery'),
           ),
         ),
       ],
@@ -91,7 +93,11 @@ class ProToolsSection extends StatelessWidget {
     String route,
   ) {
     if (isPro) {
-      context.push(route);
+      if (route == '/bulk-editor') {
+        context.go(route);
+      } else {
+        context.go(route);
+      }
       return;
     }
 
@@ -130,13 +136,13 @@ class ProToolsSection extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.xl),
               Text(
-                'Unlock Reducer Pro',
+                AppLocalizations.of(context)!.unlockReducerPro,
                 style: AppTextStyles.headlineSmall(context),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.md),
-              const Text(
-                'Bulk processing and ad-free experience are available for Pro members. Join our community today!',
+              Text(
+                AppLocalizations.of(context)!.proDescription,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.xl2),
@@ -151,13 +157,13 @@ class ProToolsSection extends StatelessWidget {
                     backgroundColor: AppColors.premium,
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
                   ),
-                  child: const Text('Upgrade to Pro'),
+                  child: Text(AppLocalizations.of(context)!.upgradeToPro),
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Maybe Later'),
+                child: Text(AppLocalizations.of(context)!.maybeLater),
               ),
             ],
           ),
@@ -173,4 +179,5 @@ class ProToolsSection extends StatelessWidget {
     );
   }
 }
+
 

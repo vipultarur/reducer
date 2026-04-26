@@ -5,6 +5,7 @@ import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
 import 'package:reducer/shared/widgets/app_button.dart';
 import 'package:reducer/shared/widgets/app_card.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 
 class PremiumLoginRequiredBlock extends StatelessWidget {
@@ -31,7 +32,7 @@ class PremiumLoginRequiredBlock extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
-                  'Login required for Premium',
+                  AppLocalizations.of(context)!.loginRequiredForPremium,
                   style: AppTextStyles.titleSmall(context),
                 ),
               ),
@@ -39,7 +40,7 @@ class PremiumLoginRequiredBlock extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'You are using guest mode. Login to subscribe, restore purchases, and unlock Pro tools.',
+            AppLocalizations.of(context)!.guestModePremiumMessage,
             style: AppTextStyles.bodySmall(context),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -47,7 +48,7 @@ class PremiumLoginRequiredBlock extends StatelessWidget {
             children: [
               Expanded(
                 child: AppButton(
-                  label: 'Login',
+                  label: AppLocalizations.of(context)!.login,
                   icon: Icons.login,
                   style: AppButtonStyle.primary,
                   isFullWidth: true,
@@ -59,7 +60,7 @@ class PremiumLoginRequiredBlock extends StatelessWidget {
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: AppButton(
-                  label: 'Register',
+                  label: AppLocalizations.of(context)!.register,
                   icon: Icons.person_add_alt_1,
                   style: AppButtonStyle.outline,
                   isFullWidth: true,
@@ -75,3 +76,4 @@ class PremiumLoginRequiredBlock extends StatelessWidget {
     );
   }
 }
+

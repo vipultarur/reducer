@@ -95,3 +95,4 @@ class HistoryItem {
     return ((originalSize - processedSize) / originalSize * 100);
   }
 }
+

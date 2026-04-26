@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="quick_compress"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_compress"
+        android:shortcutShortLabel="@string/shortcut_quick_compress"
+        android:shortcutLongLabel="@string/shortcut_quick_compress_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.tarurinfotech.reducer"
+            android:targetClass="com.tarurinfotech.reducer.MainActivity"
+            android:data="reducer://single-editor" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="bulk_compress"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_bulk"
+        android:shortcutShortLabel="@string/shortcut_bulk_compress"
+        android:shortcutLongLabel="@string/shortcut_bulk_compress_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.tarurinfotech.reducer"
+            android:targetClass="com.tarurinfotech.reducer.MainActivity"
+            android:data="reducer://bulk-editor" />
+    </shortcut>
+</shortcuts>

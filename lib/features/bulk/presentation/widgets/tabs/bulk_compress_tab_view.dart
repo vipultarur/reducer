@@ -3,6 +3,8 @@ import 'package:reducer/core/models/image_settings.dart';
 import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class BulkCompressTabView extends StatefulWidget {
   final ImageSettings settings;
@@ -50,6 +52,7 @@ class _BulkCompressTabViewState extends State<BulkCompressTabView> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
@@ -57,79 +60,121 @@ class _BulkCompressTabViewState extends State<BulkCompressTabView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildInfoNote(context, 'Settings will be applied to ALL selected images.'),
+          _buildInfoNote(context, l10n.bulkSettingsNote),
           const SizedBox(height: AppSpacing.lg),
           _buildCard(
             context,
-            title: 'ENTER TARGET FILE SIZE',
-            child: Row(
+            title: l10n.targetFileSize.toUpperCase(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _sizeController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    style: AppTextStyles.titleMedium(context),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: isDark ? Colors.black26 : Colors.white,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _sizeController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        style: AppTextStyles.titleMedium(context).copyWith(color: isDark ? AppColors.onDarkSurface : AppColors.onLightSurface),
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: isDark ? AppColors.darkSurfaceVariant : Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                            borderSide: isDark ? const BorderSide(color: Colors.white10) : const BorderSide(color: AppColors.lightBorder),
+                          ),
+                          hintText: l10n.sizeHint,
+                          suffixIcon: _sizeController.text.isNotEmpty 
+                            ? IconButton(
+                                icon: Icon(Icons.close, size: AppSpacing.iconMd, color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant), 
+                                onPressed: () {
+                                  _sizeController.clear();
+                                  _updateSettings(size: 0);
+                                },
+                              ) 
+                            : null,
+                        ),
+                        onChanged: (value) => _updateSettings(),
                       ),
-                      hintText: 'e.g. 2.5',
                     ),
-                    onChanged: (value) => _updateSettings(),
-                  ),
+                    const SizedBox(width: AppSpacing.md),
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                      ),
+                      child: Row(
+                        children: [
+                          _buildUnitButton('MB', widget.settings.isTargetUnitMb, isDark, () => _updateSettings(isMb: true)),
+                          _buildUnitButton('KB', !widget.settings.isTargetUnitMb, isDark, () => _updateSettings(isMb: false)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.md),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: isDark ? Colors.black26 : Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
+                if (widget.settings.targetFileSizeKB != null && widget.settings.targetFileSizeKB! > 0) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.auto_fix_high, size: 14.r, color: Colors.orange),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            l10n.autoQualityActive,
+                            style: TextStyle(fontSize: 11.sp, color: Colors.orange.shade800, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  child: Row(
-                    children: [
-                      _buildUnitButton('MB', widget.settings.isTargetUnitMb, isDark, () => _updateSettings(isMb: true)),
-                      _buildUnitButton('KB', !widget.settings.isTargetUnitMb, isDark, () => _updateSettings(isMb: false)),
-                    ],
-                  ),
-                ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
-          _buildCard(
-            context,
-            title: 'IMAGE QUALITY',
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Smaller file', style: AppTextStyles.labelSmall(context)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+          Opacity(
+            opacity: (widget.settings.targetFileSizeKB != null && widget.settings.targetFileSizeKB! > 0) ? 0.5 : 1.0,
+            child: _buildCard(
+              context,
+              title: l10n.imageQuality.toUpperCase(),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(l10n.smallerFile, style: AppTextStyles.labelSmall(context).copyWith(color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant)),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                        ),
+                        child: Text(
+                          '${widget.settings.quality.toInt()}%',
+                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      child: Text(
-                        '${widget.settings.quality.toInt()}%',
-                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    Text('Higher quality', style: AppTextStyles.labelSmall(context)),
-                  ],
-                ),
-                Slider(
-                  value: widget.settings.quality,
-                  min: 1,
-                  max: 100,
-                  activeColor: AppColors.primary,
-                  onChanged: (v) => widget.onSettingsChanged(widget.settings.copyWith(quality: v)),
-                ),
-              ],
+                      Text(l10n.higherQuality, style: AppTextStyles.labelSmall(context).copyWith(color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant)),
+                    ],
+                  ),
+                  Slider(
+                    value: widget.settings.quality,
+                    min: 1,
+                    max: 100,
+                    activeColor: AppColors.primary,
+                    inactiveColor: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+                    onChanged: (widget.settings.targetFileSizeKB != null && widget.settings.targetFileSizeKB! > 0) 
+                      ? null 
+                      : (v) => widget.onSettingsChanged(widget.settings.copyWith(quality: v)),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -138,21 +183,22 @@ class _BulkCompressTabViewState extends State<BulkCompressTabView> {
   }
 
   Widget _buildInfoNote(BuildContext context, String text) {
-     return Container(
-      padding: const EdgeInsets.all(12),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, size: 16, color: AppColors.primary),
-          const SizedBox(width: 8),
+          const Icon(Icons.info_outline, size: AppSpacing.iconSm, color: AppColors.primary),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               text,
-              style: AppTextStyles.labelSmall(context).copyWith(color: AppColors.primary),
+              style: AppTextStyles.labelSmall(context).copyWith(color: isDark ? AppColors.onDarkSurface : AppColors.primary),
             ),
           ),
         ],
@@ -170,16 +216,16 @@ class _BulkCompressTabViewState extends State<BulkCompressTabView> {
           style: AppTextStyles.labelSmall(context).copyWith(
             letterSpacing: 1.2,
             fontWeight: FontWeight.w800,
-            color: isDark ? Colors.white60 : Colors.black54,
+            color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF212121) : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, width: 1),
           ),
           child: child,
         ),
@@ -191,15 +237,16 @@ class _BulkCompressTabViewState extends State<BulkCompressTabView> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
-          color: isSelected ? (isDark ? Colors.white10 : Colors.white) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? (isDark ? AppColors.darkSurfaceVariant : Colors.white) : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          boxShadow: isSelected && !isDark ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)] : null,
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? AppColors.primary : Colors.grey,
+            color: isSelected ? AppColors.primary : (isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -207,3 +254,4 @@ class _BulkCompressTabViewState extends State<BulkCompressTabView> {
     );
   }
 }
+

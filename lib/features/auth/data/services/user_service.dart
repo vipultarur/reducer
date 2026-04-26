@@ -1,6 +1,7 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:reducer/features/auth/domain/models/user_model.dart';
 
 class UserService {
@@ -65,8 +66,8 @@ class UserService {
 
         tx.set(docRef, payload, SetOptions(merge: true));
       });
-    } catch (e) {
-      debugPrint('UserService: createOrUpdateUserFromAuth error: $e');
+    } catch (e, stack) {
+      unawaited(FirebaseCrashlytics.instance.recordError(e, stack, reason: 'UserService: createOrUpdateUserFromAuth'));
       rethrow;
     }
   }
@@ -77,19 +78,26 @@ class UserService {
       await _usersCollection
           .doc(user.uid)
           .set(user.toFirestore(), SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('UserService: saveUser error: $e');
+    } catch (e, stack) {
+      unawaited(FirebaseCrashlytics.instance.recordError(e, stack, reason: 'UserService: saveUser'));
       rethrow;
     }
   }
 
   Future<UserModel?> getUser(String uid) async {
     try {
-      final doc = await _usersCollection.doc(uid).get();
+      // Optimized: Try fetching from cache first for instant loading
+      DocumentSnapshot<Map<String, dynamic>> doc;
+      try {
+        doc = await _usersCollection.doc(uid).get(const GetOptions(source: Source.cache));
+      } catch (_) {
+        doc = await _usersCollection.doc(uid).get();
+      }
+      
       if (!doc.exists) return null;
       return UserModel.fromFirestore(doc);
-    } catch (e) {
-      debugPrint('UserService: getUser error: $e');
+    } catch (e, stack) {
+      unawaited(FirebaseCrashlytics.instance.recordError(e, stack, reason: 'UserService: getUser'));
       rethrow;
     }
   }
@@ -107,8 +115,8 @@ class UserService {
         ...fields,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('UserService: updateFields error: $e');
+    } catch (e, stack) {
+      unawaited(FirebaseCrashlytics.instance.recordError(e, stack, reason: 'UserService: updateFields'));
       rethrow;
     }
   }
@@ -122,9 +130,10 @@ class UserService {
         ...subData,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('UserService: updateSubscription error: $e');
+    } catch (e, stack) {
+      unawaited(FirebaseCrashlytics.instance.recordError(e, stack, reason: 'UserService: updateSubscription'));
       rethrow;
     }
   }
 }
+

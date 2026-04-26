@@ -1,50 +1,52 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:reducer/core/services/remote_config_service.dart';
 
 /// Utility class for validating image inputs before processing
 class ImageValidator {
-  // Maximum file size in bytes (50MB)
-  static const int maxFileSize = 50 * 1024 * 1024;
+  // Maximum file size in bytes (from Remote Config)
+  static int get maxFileSize => RemoteConfigService().maxFileSizeMb * 1024 * 1024;
   
-  // Maximum image dimensions
-  static const int maxDimension = 10000;
+  // Maximum image dimensions (from Remote Config)
+  static int get maxDimension => RemoteConfigService().maxImageDimension;
 
   /// Validate file size
-  static ValidationResult validateFileSize(Uint8List bytes) {
+  static ValidationResult validateFileSize(Uint8List bytes, AppLocalizations l10n) {
     if (bytes.length > maxFileSize) {
       final sizeMB = (bytes.length / (1024 * 1024)).toStringAsFixed(1);
       return ValidationResult(
         isValid: false,
-        errorMessage: 'Image too large ($sizeMB MB).\nMaximum size is 50MB.',
-        warningMessage: 'Large file detected. Processing may take longer.',
+        errorMessage: l10n.imageTooLarge(sizeMB),
+        warningMessage: l10n.largeFileWarning,
       );
     }
     return ValidationResult(isValid: true);
   }
 
   /// Validate image dimensions
-  static ValidationResult validateDimensions(img.Image image) {
+  static ValidationResult validateDimensions(img.Image image, AppLocalizations l10n) {
     if (image.width > maxDimension || image.height > maxDimension) {
       return ValidationResult(
         isValid: false,
-        errorMessage: 'Image dimensions too large (${image.width}x${image.height}).\nMaximum is 10000x10000 pixels.',
+        errorMessage: l10n.imageDimensionsTooLarge(image.width.toString(), image.height.toString()),
       );
     }
     return ValidationResult(isValid: true);
   }
 
   /// Validate image can be decoded
-  static ValidationResult validateImageData(Uint8List bytes) {
+  static ValidationResult validateImageData(Uint8List bytes, AppLocalizations l10n) {
     try {
       final image = img.decodeImage(bytes);
       if (image == null) {
         return ValidationResult(
           isValid: false,
-          errorMessage: 'Cannot decode image.\nFile may be corrupted or invalid format.',
+          errorMessage: l10n.cannotDecodeImage,
         );
       }
-      final dimensionResult = validateDimensions(image);
+      final dimensionResult = validateDimensions(image, l10n);
       if (!dimensionResult.isValid) return dimensionResult;
 
       return ValidationResult(
@@ -55,20 +57,19 @@ class ImageValidator {
     } catch (e) {
       return ValidationResult(
         isValid: false,
-        errorMessage: 'Error reading image: ${e.toString()}',
+        errorMessage: l10n.errorReadingImage(e.toString()),
       );
     }
   }
 
   /// Validate all aspects of an image
-  static Future<ValidationResult> validateImage(Uint8List bytes) async {
+  static Future<ValidationResult> validateImage(Uint8List bytes, AppLocalizations l10n) async {
     // First check file size (lightweight)
-    final sizeResult = validateFileSize(bytes);
+    final sizeResult = validateFileSize(bytes, l10n);
     if (!sizeResult.isValid) return sizeResult;
 
     // Then check if it's a valid image and dimensions (heavyweight)
-    // Fix: Move decoding off the UI thread to avoid main-thread blocking JANK.
-    final imageResult = await compute(_validateImageDataIsolate, bytes);
+    final imageResult = await compute(_validateImageDataIsolate, [bytes, l10n]);
     if (!imageResult.isValid) return imageResult;
 
     // All checks passed
@@ -81,12 +82,15 @@ class ImageValidator {
   }
 
   /// Internal worker for Isolate validation
-  static ValidationResult _validateImageDataIsolate(Uint8List bytes) {
-    return validateImageData(bytes);
+  static ValidationResult _validateImageDataIsolate(List<dynamic> args) {
+    final bytes = args[0] as Uint8List;
+    final l10n = args[1] as AppLocalizations;
+    return validateImageData(bytes, l10n);
   }
 
   /// Show validation error dialog
   static void showValidationDialog(BuildContext context, ValidationResult result) {
+    final l10n = AppLocalizations.of(context)!;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -97,22 +101,21 @@ class ImageValidator {
               color: result.isValid ? Colors.orange : Colors.red,
             ),
             const SizedBox(width: 12),
-            Text(result.isValid ? 'Warning' : 'Error'),
+            Text(result.isValid ? l10n.warning : l10n.error),
           ],
         ),
         content: Text(result.errorMessage ?? result.warningMessage!),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
+            child: Text(l10n.ok),
           ),
           if (result.isValid && result.hasWarning)
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-                // Continue with processing
               },
-              child: const Text('Continue Anyway'),
+              child: Text(l10n.continueAnyway),
             ),
         ],
       ),
@@ -138,3 +141,4 @@ class ValidationResult {
 
   bool get hasWarning => warningMessage != null;
 }
+

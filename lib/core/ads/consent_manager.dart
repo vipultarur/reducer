@@ -167,3 +167,4 @@ class ConsentManager {
     _canRequestAdsCache = false;
   }
 }
+

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'ad_ids.dart';
 import 'consent_manager.dart';
+import 'package:reducer/core/services/remote_config_service.dart';
 
 /// Manages all Google Mobile Ads loading, presentation, and lifecycle.
 ///
@@ -40,7 +42,7 @@ class AdManager {
       await ConsentManager().gatherConsent();
       
       final canRequest = await ConsentManager().canRequestAds();
-      if (!canRequest) return false;
+      if (!canRequest || !RemoteConfigService().adsEnabled) return false;
 
       await MobileAds.instance.initialize();
 
@@ -58,7 +60,7 @@ class AdManager {
   void _scheduleLoadEssential() {
     // Only load the App Open ad immediately as it is needed for the splash screen.
     // Stagger others to reduce CPU/Network burst during startup.
-    loadAppOpenAd();
+    unawaited(loadAppOpenAd());
 
     Future.delayed(const Duration(seconds: 2), () {
       if (!_isPremium) {
@@ -79,15 +81,18 @@ class AdManager {
   bool _isInterstitialLoading = false;
   bool _isShowing = false;
   DateTime? _lastInterstitialShownAt;
-  static const Duration _interstitialMinGap = Duration(seconds: 30);
+  Duration get _interstitialMinGap => Duration(seconds: RemoteConfigService().interstitialGapSeconds);
 
   bool get isInterstitialReady => _interstitialAd != null && !_isShowing;
 
   int _interstitialRetryCount = 0;
+  Timer? _interstitialRetryTimer;
 
   void loadInterstitialAd() {
-    if (isPremium || _isInterstitialLoading || _interstitialAd != null) return;
+    if (isPremium || _isInterstitialLoading || _interstitialAd != null || !RemoteConfigService().adsEnabled) return;
 
+    _interstitialRetryTimer?.cancel();
+    _interstitialRetryTimer = null;
     _isInterstitialLoading = true;
     debugPrint('[AdManager] Loading Interstitial (Attempt ${_interstitialRetryCount + 1})...');
 
@@ -107,10 +112,12 @@ class AdManager {
           _interstitialRetryCount++;
           debugPrint('[AdManager] ❌ Interstitial failed: $error');
           
-          // Exponential backoff: 30s, 60s, 120s... max 30 mins
-          final delaySeconds = (30 * (1 << (_interstitialRetryCount - 1))).clamp(30, 1800);
+          // Exponential backoff: using config base and max
+          final base = RemoteConfigService().retryBaseSeconds;
+          final max = RemoteConfigService().retryMaxSeconds;
+          final delaySeconds = (base * (1 << (_interstitialRetryCount - 1))).clamp(base, max);
           debugPrint('[AdManager] Retrying Interstitial in $delaySeconds seconds');
-          Future.delayed(Duration(seconds: delaySeconds), loadInterstitialAd);
+          _interstitialRetryTimer = Timer(Duration(seconds: delaySeconds), loadInterstitialAd);
         },
       ),
     );
@@ -157,7 +164,7 @@ class AdManager {
   bool _isAppOpenLoading = false;
   DateTime? _appOpenLoadTime;
   DateTime? _lastAppOpenShownAt;
-  static const Duration _appOpenMinGap = Duration(seconds: 30);
+  Duration get _appOpenMinGap => Duration(seconds: RemoteConfigService().appOpenGapSeconds);
 
   bool get isAppOpenReady {
     if (isPremium || _appOpenAd == null || _appOpenLoadTime == null) {
@@ -169,10 +176,13 @@ class AdManager {
   }
 
   int _appOpenRetryCount = 0;
+  Timer? _appOpenRetryTimer;
 
   Future<void> loadAppOpenAd() async {
-    if (isPremium || _isAppOpenLoading || _appOpenAd != null) return;
+    if (isPremium || _isAppOpenLoading || _appOpenAd != null || !RemoteConfigService().adsEnabled) return;
 
+    _appOpenRetryTimer?.cancel();
+    _appOpenRetryTimer = null;
     _isAppOpenLoading = true;
     debugPrint('[AdManager] Loading App Open (Attempt ${_appOpenRetryCount + 1})...');
 
@@ -194,9 +204,11 @@ class AdManager {
           debugPrint('[AdManager] ❌ App Open failed: $error');
 
           // Exponential backoff
-          final delaySeconds = (30 * (1 << (_appOpenRetryCount - 1))).clamp(30, 1800);
+          final base = RemoteConfigService().retryBaseSeconds;
+          final max = RemoteConfigService().retryMaxSeconds;
+          final delaySeconds = (base * (1 << (_appOpenRetryCount - 1))).clamp(base, max);
           debugPrint('[AdManager] Retrying App Open in $delaySeconds seconds');
-          Future.delayed(Duration(seconds: delaySeconds), loadAppOpenAd);
+          _appOpenRetryTimer = Timer(Duration(seconds: delaySeconds), loadAppOpenAd);
         },
       ),
     );
@@ -209,10 +221,11 @@ class AdManager {
       return;
     }
 
-    // New: Enforcement of 30-second gap for App Open ads
+    // Special case for splash: we might want to be more lenient with the gap
+    // or just let the Remote Config handle it.
     if (_lastAppOpenShownAt != null &&
         DateTime.now().difference(_lastAppOpenShownAt!) < _appOpenMinGap) {
-      debugPrint('[AdManager] App Open gap not met, skipping...');
+      debugPrint('[AdManager] App Open gap not met, skipping splash ad');
       onDone();
       return;
     }
@@ -222,7 +235,7 @@ class AdManager {
         onAdDismissedFullScreenContent: (ad) {
           ad.dispose();
           _appOpenAd = null;
-          _lastAppOpenShownAt = DateTime.now(); // Track when shown
+          _lastAppOpenShownAt = DateTime.now();
           onDone();
         },
         onAdFailedToShowFullScreenContent: (ad, error) {
@@ -233,14 +246,14 @@ class AdManager {
       );
       await _appOpenAd!.show();
     } else {
-      // If not ready, load and wait max 2 seconds (Splash optimization)
+      // If not ready, load and wait max 5 seconds (Splash optimization)
       if (!_isAppOpenLoading) {
-        loadAppOpenAd();
+        unawaited(loadAppOpenAd());
       }
 
       int timerCount = 0;
-      // Faster polling (50ms) and shorter timeout (2s) for better responsiveness
-      while (_isAppOpenLoading && timerCount < 40) {
+      // Increased timeout to 5 seconds (100 * 50ms) for better load chance on splash
+      while (_isAppOpenLoading && timerCount < 100) {
         await Future.delayed(const Duration(milliseconds: 50));
         timerCount++;
       }
@@ -248,24 +261,26 @@ class AdManager {
       if (isAppOpenReady) {
         await showSplashAd(onDone: onDone);
       } else {
-        debugPrint('[AdManager] App Open timeout, skipping splash ad');
+        debugPrint('[AdManager] App Open timeout (5s), skipping splash ad');
         onDone();
       }
     }
   }
 
-  // ── Persistent Cached Ads ─────────────────────────────────────────────────
   BannerAd? _cachedBannerAd;
   bool _isBannerLoading = false;
+  int _bannerRetryCount = 0;
+  Timer? _bannerRetryTimer;
 
   NativeAd? _cachedNativeAd;
   bool _isNativeLoading = false;
+  int _nativeRetryCount = 0;
+  Timer? _nativeRetryTimer;
 
   /// Retrieves the persistent banner ad or initiates a load.
-  /// If [forceReload] is true, it will dispose and reload.
   BannerAd? getCachedBanner() {
     if (isPremium) return null;
-    if (_cachedBannerAd == null && !_isBannerLoading) {
+    if (_cachedBannerAd == null && !_isBannerLoading && _bannerRetryTimer == null) {
       _loadPersistentBanner();
     }
     return _cachedBannerAd;
@@ -274,14 +289,17 @@ class AdManager {
   /// Retrieves the persistent native ad or initiates a load.
   NativeAd? getCachedNative() {
     if (isPremium) return null;
-    if (_cachedNativeAd == null && !_isNativeLoading) {
+    if (_cachedNativeAd == null && !_isNativeLoading && _nativeRetryTimer == null) {
       _loadPersistentNative();
     }
     return _cachedNativeAd;
   }
 
   void _loadPersistentBanner() {
-    if (_isBannerLoading || _cachedBannerAd != null) return;
+    if (_isBannerLoading || _cachedBannerAd != null || !RemoteConfigService().adsEnabled) return;
+    
+    _bannerRetryTimer?.cancel();
+    _bannerRetryTimer = null;
     _isBannerLoading = true;
     
     BannerAd(
@@ -292,22 +310,32 @@ class AdManager {
         onAdLoaded: (ad) {
           _cachedBannerAd = ad as BannerAd;
           _isBannerLoading = false;
+          _bannerRetryCount = 0;
           debugPrint('[AdManager] ✅ Global Banner Loaded');
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
           _isBannerLoading = false;
           _cachedBannerAd = null;
-          debugPrint('[AdManager] ❌ Global Banner Failed: $error');
-          // Retry after delay
-          Future.delayed(const Duration(seconds: 30), _loadPersistentBanner);
+          _bannerRetryCount++;
+          
+          // Exponential backoff
+          final base = 10; // Lowered from 30 to 10 for better response
+          final max = 300; // Capped at 5 minutes for persistent ads
+          final delaySeconds = (base * (1 << (_bannerRetryCount - 1))).clamp(base, max);
+          
+          debugPrint('[AdManager] ❌ Banner Failed: $error. Retrying in $delaySeconds seconds (Attempt $_bannerRetryCount)');
+          _bannerRetryTimer = Timer(Duration(seconds: delaySeconds), _loadPersistentBanner);
         },
       ),
     ).load();
   }
 
   void _loadPersistentNative() {
-    if (_isNativeLoading || _cachedNativeAd != null) return;
+    if (_isNativeLoading || _cachedNativeAd != null || !RemoteConfigService().adsEnabled) return;
+    
+    _nativeRetryTimer?.cancel();
+    _nativeRetryTimer = null;
     _isNativeLoading = true;
     
     NativeAd(
@@ -322,14 +350,22 @@ class AdManager {
         onAdLoaded: (ad) {
           _cachedNativeAd = ad as NativeAd;
           _isNativeLoading = false;
+          _nativeRetryCount = 0;
           debugPrint('[AdManager] ✅ Global Native Ad Loaded');
         },
         onAdFailedToLoad: (ad, error) {
           ad.dispose();
           _isNativeLoading = false;
           _cachedNativeAd = null;
-          debugPrint('[AdManager] ❌ Global Native Ad Failed: $error');
-          Future.delayed(const Duration(seconds: 30), _loadPersistentNative);
+          _nativeRetryCount++;
+          
+          // Exponential backoff
+          final base = 10; // Lowered from 30 to 10
+          final max = 300; // Capped at 5 minutes
+          final delaySeconds = (base * (1 << (_nativeRetryCount - 1))).clamp(base, max);
+          
+          debugPrint('[AdManager] ❌ Native Failed: $error. Retrying in $delaySeconds seconds (Attempt $_nativeRetryCount)');
+          _nativeRetryTimer = Timer(Duration(seconds: delaySeconds), _loadPersistentNative);
         },
       ),
     ).load();
@@ -364,6 +400,15 @@ class AdManager {
     _cachedNativeAd?.dispose();
     _cachedNativeAd = null;
 
+    _bannerRetryTimer?.cancel();
+    _bannerRetryTimer = null;
+    _nativeRetryTimer?.cancel();
+    _nativeRetryTimer = null;
+    _interstitialRetryTimer?.cancel();
+    _interstitialRetryTimer = null;
+    _appOpenRetryTimer?.cancel();
+    _appOpenRetryTimer = null;
+
     _activeAdHashes.clear();
     _isShowing = false;
   }
@@ -386,3 +431,4 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
     }
   }
 }
+

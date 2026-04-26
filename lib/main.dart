@@ -6,7 +6,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:reducer/core/localization/locale_provider.dart';
 import 'package:reducer/core/utils/image_processor.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+import 'package:reducer/core/services/connectivity_service.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
@@ -14,6 +20,8 @@ import 'core/ads/ad_manager.dart';
 import 'core/ads/consent_manager.dart';
 import 'core/routes/app_router.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/force_update_service.dart';
+import 'package:reducer/core/services/remote_config_service.dart';
 import 'firebase_options.dart';
 import 'package:google_sign_in/google_sign_in.dart' as google_auth;
 void main() async {
@@ -29,42 +37,74 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // 4. Firebase Crashlytics Setup
-    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
-    PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-      return true;
-    };
+    // Centralized Firestore Configuration with optimized cache size
+    // Using unlimited cache size so OS manages it or relying on the default bounds.
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+
     // 2. Memory & Image Configuration
     // Reduced from 120MB/200 to 64MB/100 to prevent OOM on low-end devices
     PaintingBinding.instance.imageCache
       ..maximumSizeBytes = 64 << 20 // 64MB
       ..maximumSize = 100;
 
-    
-    // Centralized Firestore Configuration with optimized cache size
-    FirebaseFirestore.instance.settings = const Settings(
-      persistenceEnabled: true,
-      cacheSizeBytes: 50 * 1024 * 1024, // Optimized 50MB
-    );
-
-    // 4. Google Sign-In Initialization (Required for v7.x.x)
-    await google_auth.GoogleSignIn.instance.initialize();
-    
-    // 5. Deferred/Non-blocking initializations
-    unawaited(_initializeSecondaryServices());
+    // Fire and forget non-blocking initializations
+    await Future.microtask(() async {
+      await RemoteConfigService().init();
+      
+      // 5. Firebase Crashlytics Setup
+      FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+      PlatformDispatcher.instance.onError = (error, stack) {
+        FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+        return true;
+      };
+      
+      unawaited(_initializeSecondaryServices());
+    });
   } catch (e) {
     debugPrint('Critical initialization failure: $e');
   }
 
-  // 5. Start App immediately
-  runApp(const ProviderScope(child: MyApp()));
+    // 6. Global Error Boundary (Production Hardening)
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      return Material(
+        child: Container(
+          color: const Color(0xFF020617),
+          padding: const EdgeInsets.all(24.0),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 60),
+              SizedBox(height: 16),
+              Text(
+                'Something went wrong',
+                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'We encountered an unexpected error. Our team has been notified.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70),
+              ),
+            ],
+          ),
+        ),
+      );
+    };
+
+    // 7. Start App immediately
+    runApp(const ProviderScope(child: MyApp()));
 }
 
 /// Services that can initialize in the background without blocking the UI thread.
 Future<void> _initializeSecondaryServices() async {
   try {
-    // Notifications init
+    // google_auth v7.x.x initialization is non-blocking but essential for Auth flows
+    unawaited(google_auth.GoogleSignIn.instance.initialize());
+    
+    // Notifications init - Await to ensure channels are ready
     await NotificationService().init();
     
     // Permission requests shouldn't block startup
@@ -114,6 +154,7 @@ class _MyAppState extends ConsumerState<MyApp> {
   void dispose() {
     WidgetsBinding.instance.removeObserver(_lifecycleObserver);
     AdManager().disposeAll();
+    ConnectivityService().dispose();
     super.dispose();
   }
 
@@ -121,14 +162,54 @@ class _MyAppState extends ConsumerState<MyApp> {
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final locale = ref.watch(localeProvider);
 
-    return MaterialApp.router(
-      title: 'Reducer',
-      debugShowCheckedModeBanner: false,
+    return ScreenUtilInit(
+      designSize: const Size(390, 844),
+      minTextAdapt: true,
+      splitScreenMode: true,
+          builder: (context, child) {
+            return MaterialApp.router(
+          title: 'Reducer',
+          debugShowCheckedModeBanner: false,
+          builder: (context, child) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ForceUpdateService().checkAndEnforce(context);
+            });
+            return child!;
+          },
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
       routerConfig: router,
+      locale: locale,
+      localizationsDelegates: [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en'),
+        Locale('zh'),
+        Locale('hi'),
+        Locale('es'),
+        Locale('ar'),
+        Locale('fr'),
+        Locale('pt'),
+        Locale('ru'),
+        Locale('de'),
+        Locale('ja'),
+        Locale('ko'),
+        Locale('tr'),
+        Locale('vi'),
+        Locale('id'),
+        Locale('pl'),
+        Locale('et'),
+      ],
+    );
+      },
     );
   }
 }
+

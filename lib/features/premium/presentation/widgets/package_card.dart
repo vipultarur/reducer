@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:reducer/features/premium/domain/models/premium_plan.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class PackageCard extends StatelessWidget {
   final PremiumPlan package;
@@ -22,46 +24,39 @@ class PackageCard extends StatelessWidget {
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
         margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
+        padding: EdgeInsets.symmetric(vertical: 24.h, horizontal: 12.w),
         decoration: BoxDecoration(
           color: isSelected 
-              ? const Color(0xFF1E293B).withValues(alpha: 0.8) 
-              : Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(24),
+              ? Colors.white
+              : Colors.white.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(20.r),
           border: Border.all(
             color: isSelected 
-                ? const Color(0xFFFACC15) 
-                : Colors.white.withValues(alpha: 0.1),
-            width: isSelected ? 2 : 1.5,
+                ? Colors.black87
+                : const Color(0xFFE2E8F0),
+            width: isSelected ? 2.w : 1.w,
           ),
           boxShadow: isSelected ? [
             BoxShadow(
-              color: const Color(0xFFEAB308).withValues(alpha: 0.25),
-              blurRadius: 20,
-              spreadRadius: 3,
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10.r,
+              spreadRadius: 2.r,
+              offset: Offset(0, 4.h),
             )
           ] : [],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFFACC15).withValues(alpha: 0.1) : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _planLabel,
-                style: TextStyle(
-                  fontSize: 10,
-                  letterSpacing: 1.5,
-                  fontWeight: FontWeight.w900,
-                  color: isSelected ? const Color(0xFFFACC15) : Colors.white38,
-                ),
+            Text(
+              _getPlanLabel(context),
+              style: TextStyle(
+                fontSize: 10.sp,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? Colors.black87 : Colors.black54,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 12.h),
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Row(
@@ -72,68 +67,61 @@ class PackageCard extends StatelessWidget {
                   Text(
                     _currencySymbol,
                     style: TextStyle(
-                      fontSize: 14,
-                      color: isSelected ? const Color(0xFFFACC15) : Colors.white60,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 14.sp,
+                      color: isSelected ? Colors.black87 : Colors.black54,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
                     _numericPrice,
-                    style: const TextStyle(
-                      fontSize: 22,
+                    style: TextStyle(
+                      fontSize: 24.sp,
                       fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
+                      color: Colors.black87,
+                      letterSpacing: -0.5.w,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              _periodSuffix,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: Colors.white.withValues(alpha: 0.4),
-              ),
-            ),
             // Show trial badge if available
             if (package.trialPeriod != null) ...[
-              const SizedBox(height: 8),
+              SizedBox(height: 8.h),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF22C55E).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFF22C55E).withValues(alpha: 0.4)),
+                  color: const Color(0xFF22C55E).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4.r),
                 ),
                 child: Text(
-                  '${package.trialPeriod} FREE',
-                  style: const TextStyle(
-                    color: Color(0xFF22C55E),
-                    fontSize: 8,
+                  '${package.trialPeriod} ${AppLocalizations.of(context)!.freeLabel}',
+                  style: TextStyle(
+                    color: const Color(0xFF16A34A),
+                    fontSize: 8.sp,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
             ],
-            const SizedBox(height: 16),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              padding: const EdgeInsets.all(4),
+            SizedBox(height: 16.h),
+            // The BUY Button built into the card
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.symmetric(vertical: 8.h),
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected ? const Color(0xFFFACC15) : Colors.white12,
-                  width: 1.5,
-                ),
-                color: isSelected ? const Color(0xFFFACC15) : Colors.transparent,
+                color: isSelected ? Colors.black87 : Colors.black12,
+                borderRadius: BorderRadius.circular(12.r),
               ),
-              child: Icon(
-                Icons.check,
-                color: isSelected ? Colors.black : Colors.transparent,
-                size: 14,
+              child: Center(
+                child: Text(
+                  AppLocalizations.of(context)!.buy.toUpperCase(),
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black54,
+                    fontSize: 12.sp,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5.w,
+                  ),
+                ),
               ),
             ),
           ],
@@ -143,28 +131,29 @@ class PackageCard extends StatelessWidget {
   }
 
   /// The label displayed at the top of the card, derived from the plan type.
-  String get _planLabel {
-    if (package.isTestPlan) return 'TRIAL';
-    if (package.isYearly) return 'YEARLY';
-    if (package.isMonthly) return 'MONTHLY';
+  String _getPlanLabel(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    if (package.isTestPlan) return l10n.trial;
+    if (package.isYearly) return l10n.yearly;
+    if (package.isMonthly) return l10n.monthly;
     return package.periodName.toUpperCase();
   }
 
-  /// Extract the currency symbol from the formatted price (e.g., "₹" from "₹99.00").
+  /// Extract currency symbol - handles both prefix (₹99) and suffix (99 €) formats
   String get _currencySymbol {
-    return RegExp(r'^[^\d]+').stringMatch(package.price) ?? '';
+    // Try prefix first (e.g., ₹99.00, $1.99, R$ 4.99)
+    final prefix = RegExp(r'^[^\d]+').stringMatch(package.price)?.trim();
+    if (prefix != null && prefix.isNotEmpty) return prefix;
+    
+    // Try suffix (e.g., 0,99 €, 4,99 zł)
+    final suffix = RegExp(r'[^\d,.\s]+$').stringMatch(package.price)?.trim();
+    return suffix ?? '';
   }
 
-  /// Extract the numeric portion from the formatted price (e.g., "99.00" from "₹99.00").
+  /// Extract numeric portion from the formatted price.
   String get _numericPrice {
     return RegExp(r'[\d,.]+').stringMatch(package.price) ?? '0';
   }
 
-  /// The period suffix displayed below the price.
-  String get _periodSuffix {
-    if (package.isTestPlan) return 'Full Access';
-    if (package.isYearly) return '/year';
-    if (package.isMonthly) return '/month';
-    return '/${package.periodName.toLowerCase()}';
-  }
 }
+

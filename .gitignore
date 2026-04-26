@@ -12,6 +12,27 @@
 .swiftpm/
 migrate_working_dir/
 
+# Secrets & Keystores
+*.jks
+*.p12
+*.pem
+*.keystore
+key.properties
+
+# Development Artifacts
+analyze_output*.txt
+errors.txt
+lib_files.txt
+*.log
+implementation_plan.md
+.env*
+.analyze_output.txt
+auth_config.json
+firebase.json
+firestore.rules
+check_path.dart
+hs_err_pid*
+
 # IntelliJ related
 *.iml
 *.ipr

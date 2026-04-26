@@ -18,3 +18,4 @@ class Failure<T> extends Result<T> {
   final Object? error;
   const Failure(this.message, [this.error]);
 }
+

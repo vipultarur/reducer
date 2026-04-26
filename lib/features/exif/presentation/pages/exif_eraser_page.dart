@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 import 'package:reducer/features/exif/presentation/providers/exif_providers.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +16,8 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class ExifEraserScreen extends ConsumerStatefulWidget {
   const ExifEraserScreen({super.key});
@@ -31,7 +34,7 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
     if (!await PermissionService.instance.ensurePhotosPermission(context)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Permission required to access photos')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.permissionRequiredToAccessPhotos)),
         );
       }
       return;
@@ -43,7 +46,7 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unable to open gallery: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.unableToOpenGallery(e.toString()))),
         );
       }
       return;
@@ -63,7 +66,7 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
 
     // Hard Gate Check: Redirect to premium if out of credits
     if (!isPro && credits <= 0) {
-      if (mounted) context.push('/premium');
+      if (mounted) unawaited(context.push('/premium'));
       return;
     }
 
@@ -73,7 +76,7 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
       if (!await PermissionService.instance.ensurePhotosPermission(context)) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Storage permission required to save')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.storagePermissionRequiredToSave)),
           );
         }
         return;
@@ -90,31 +93,39 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
       );
 
       if (result != null) {
-        // Save to gallery
-        await Gal.putImage(result.path, album: 'Reducer');
+        // Save to gallery with robust error handling
+        try {
+          await Gal.putImage(result.path, album: 'Reducer');
+        } catch (e) {
+          debugPrint('Gal save error: $e');
+          throw 'Failed to save to gallery. Please check storage space and permissions.';
+        }
 
         if (mounted) {
           // Consume credit for free users
           if (!isPro) {
             await ref.read(exifCreditProvider.notifier).useCredit();
           }
-          _showSuccessDialog(context);
+          if (mounted) {
+            _showSuccessDialog(context);
+          }
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to clean metadata')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.failedToCleanMetadata)),
           );
         }
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error cleaning metadata: $e')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.errorCleaningMetadata(e.toString()))),
       );
     } finally {
-      if (!mounted) return;
-      setState(() => _isProcessing = false);
+      if (mounted) {
+        setState(() => _isProcessing = false);
+      }
     }
   }
 
@@ -123,11 +134,12 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        icon: const Icon(Iconsax.tick_circle5, color: Colors.green, size: 64),
-        title: const Text('Success!'),
-        content: const Text(
-          'Sensitive metadata has been completely removed. The clean image is now safe in your Gallery under the "Reducer" folder.',
+        icon: Icon(Iconsax.tick_circle5, color: Colors.green, size: 64.r),
+        title: Text(AppLocalizations.of(context)!.success),
+        content: Text(
+          AppLocalizations.of(context)!.exifSuccessMessage,
           textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14.sp),
         ),
         actions: [
           TextButton(
@@ -135,15 +147,15 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
               Navigator.pop(context);
               setState(() => _selectedImages = null);
             },
-            child: const Text('Done'),
+            child: Text(AppLocalizations.of(context)!.done),
           ),
-          FilledButton(
+          TextButton(
             onPressed: () {
               Navigator.pop(context);
               setState(() => _selectedImages = null);
               context.go('/gallery');
             },
-            child: const Text('View History'),
+            child: Text(AppLocalizations.of(context)!.viewHistory),
           ),
         ],
       ),
@@ -157,30 +169,30 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('EXIF Eraser', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 20)),
+        title: Text(AppLocalizations.of(context)!.exifEraser, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 20.sp)),
         elevation: 0,
         centerTitle: false,
         actions: [
           if (!isPro && !creditState.isLoading)
             Center(
               child: Container(
-                margin: const EdgeInsets.only(right: 16),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                margin: EdgeInsets.only(right: 16.w),
+                padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                 decoration: BoxDecoration(
                   color: creditState.availableCredits > 0 
                       ? Colors.green.withValues(alpha: 0.1) 
                       : Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                   border: Border.all(
                     color: creditState.availableCredits > 0 ? Colors.green : Colors.red,
-                    width: 0.5,
+                    width: 0.5.w,
                   ),
                 ),
                 child: Text(
-                  '${creditState.availableCredits} Free Trial Left',
+                  AppLocalizations.of(context)!.freeTrialLeft(creditState.availableCredits),
                   style: TextStyle(
                     color: creditState.availableCredits > 0 ? Colors.green : Colors.red,
-                    fontSize: 10,
+                    fontSize: 10.sp,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -193,41 +205,43 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
           const BannerAdWidget(),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
+              padding: EdgeInsets.all(24.w),
               child: Column(
                 children: [
                    Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: EdgeInsets.all(20.r),
                     decoration: AppTheme.cardDecoration(context),
                     child: Column(
                       children: [
-                        const Icon(Iconsax.shield_tick, size: 64, color: AppColors.primary),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Privacy First',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        Icon(Iconsax.shield_tick, size: 64.r, color: AppColors.primary),
+                        SizedBox(height: 16.h),
+                        Text(
+                          AppLocalizations.of(context)!.privacyFirst,
+                          style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'Remove GPS coordinates, camera info, and other sensitive metadata from your photos before sharing.',
+                        SizedBox(height: 8.h),
+                        Text(
+                          AppLocalizations.of(context)!.privacyFirstDescription,
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(color: Colors.grey, fontSize: 13.sp),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  SizedBox(height: 32.h),
                   
                   if (_selectedImages == null)
                     _buildUploadPlaceholder()
                   else
                     _buildImagePreview(),
                   
-                  const SizedBox(height: 32),
+                  SizedBox(height: 32.h),
                   
                   if (_selectedImages != null)
                     AppButton(
-                      label: _isProcessing ? 'Cleaning...' : 'Clean & Save',
+                      label: _isProcessing 
+                          ? AppLocalizations.of(context)!.cleaning 
+                          : AppLocalizations.of(context)!.cleanAndSave,
                       icon: Iconsax.shield_tick,
                       onPressed: () => AdManager().showInterstitialAd(
                         onComplete: _cleanMetadata,
@@ -248,19 +262,22 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
     return GestureDetector(
       onTap: _pickImage,
       child: Container(
-        height: 200,
+        height: 200.h,
         width: double.infinity,
         decoration: BoxDecoration(
           color: AppColors.primaryContainer,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(20.r),
           border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), style: BorderStyle.solid),
         ),
-        child: const Column(
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Iconsax.add_square, size: 48, color: AppColors.primary),
-            SizedBox(height: 12),
-            Text('Tap to select image', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w500)),
+            Icon(Iconsax.add_square, size: 48.r, color: AppColors.primary),
+            SizedBox(height: 12.h),
+            Text(
+              AppLocalizations.of(context)!.tapToSelectImage, 
+              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w500, fontSize: 16.sp),
+            ),
           ],
         ),
       ),
@@ -274,24 +291,24 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
           alignment: Alignment.topRight,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(20.r),
               child: Image.file(
                 File(_selectedImages!.path),
-                height: 300,
+                height: 300.h,
                 width: double.infinity,
                 fit: BoxFit.contain,
               ),
             ),
             IconButton(
-              icon: const Icon(Iconsax.close_circle, color: Colors.red),
+              icon: Icon(Iconsax.close_circle, color: Colors.red, size: 24.r),
               onPressed: () => setState(() => _selectedImages = null),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12.h),
         Text(
           _selectedImages!.name,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12.sp, color: Colors.grey),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -299,3 +316,4 @@ class _ExifEraserScreenState extends ConsumerState<ExifEraserScreen> {
     );
   }
 }
+

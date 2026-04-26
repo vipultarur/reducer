@@ -5,6 +5,8 @@ import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
 import 'package:reducer/features/bulk/presentation/controllers/bulk_image_controller.dart';
 import 'package:reducer/features/bulk/presentation/widgets/image_grid_tile.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:reducer/core/utils/file_utils.dart';
 
 class BulkExportTabView extends StatelessWidget {
   final BulkImageState state;
@@ -22,6 +24,7 @@ class BulkExportTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasProcessed = state.processedResults.isNotEmpty;
 
@@ -40,22 +43,22 @@ class BulkExportTabView extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  _buildSummaryRow(
+                   _buildSummaryRow(
                     context, 
-                    'Total Original', 
-                    _formatFileSize(state.totalOriginalSize),
+                    l10n.totalOriginal, 
+                    FileUtils.formatBytesDetailed(state.totalOriginalSize),
                   ),
                   const SizedBox(height: 8),
-                  _buildSummaryRow(
+                   _buildSummaryRow(
                     context, 
-                    'Total Compressed', 
-                    _formatFileSize(state.totalCompressedSize),
+                    l10n.totalCompressed, 
+                    FileUtils.formatBytesDetailed(state.totalCompressedSize),
                     valueColor: AppColors.primary,
                   ),
                   const SizedBox(height: 8),
-                  _buildSummaryRow(
+                   _buildSummaryRow(
                     context, 
-                    'Space Saved', 
+                    l10n.spaceSaved, 
                     '${state.totalOriginalSize > 0 ? ((state.totalOriginalSize - state.totalCompressedSize) / state.totalOriginalSize * 100).toInt() : 0}%',
                     valueColor: Colors.green,
                   ),
@@ -74,8 +77,8 @@ class BulkExportTabView extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Processing ${state.selectedImages.length} images...',
+                     Text(
+                      l10n.processingProgress(state.selectedImages.length), // Reusing processingProgress from arb
                       style: AppTextStyles.labelMedium(context).copyWith(fontWeight: FontWeight.bold),
                     ),
                     Text(
@@ -123,123 +126,72 @@ class BulkExportTabView extends StatelessWidget {
         ),
 
         // Bottom Actions
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 10,
-                offset: const Offset(0, -2),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!hasProcessed && !state.isProcessing)
-                SizedBox(
-                  width: double.infinity,
+        if (hasProcessed && !state.isProcessing)
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: onProcess,
-                    icon: const Icon(Iconsax.flash),
-                    label: Text('Start Batch Processing (${state.selectedImages.length})'),
+                    onPressed: onSaveAll,
+                    icon: const Icon(Iconsax.gallery),
+                    label: Text(l10n.saveAll),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                 ),
-              
-              if (hasProcessed && !state.isProcessing)
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: onSaveAll,
-                        icon: const Icon(Iconsax.gallery),
-                        label: const Text('Save All'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: onExportZip,
-                        icon: const Icon(Iconsax.archive),
-                        label: const Text('ZIP'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                
-              if (state.isProcessing)
-                 SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: null,
-                    icon: const SizedBox(
-                      width: 16, height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    ),
-                    label: const Text('Processing...'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: onExportZip,
+                    icon: const Icon(Iconsax.archive),
+                    label: Text(l10n.zip),
+                    style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: const BorderSide(color: AppColors.primary),
+                      foregroundColor: AppColors.primary,
                     ),
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
 
   Widget _buildSummaryRow(BuildContext context, String label, String value, {Color? valueColor}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: AppTextStyles.labelSmall(context).copyWith(color: Colors.grey)),
+        Text(label, style: AppTextStyles.labelSmall(context).copyWith(color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant)),
         Text(
           value,
           style: AppTextStyles.labelMedium(context).copyWith(
             fontWeight: FontWeight.bold,
-            color: valueColor,
+            color: valueColor ?? (isDark ? AppColors.onDarkSurface : AppColors.onLightSurface),
           ),
         ),
       ],
     );
   }
 
-  String _formatFileSize(int bytes) {
-    if (bytes <= 0) return '0 B';
-    if (bytes < 1024) return '$bytes B';
-    final kb = bytes / 1024;
-    final mb = kb / 1024;
-
-    // - Verified that `_formatFileSize` correctly calculates and displays both units.
-    // - Verified that Bulk Studio accurately sums up the sizes of all processed images.
-    // - Verified that the UI remains clean and responsive with the additional text.
-
-    // ### Bug Fixes & Refinements
-    // - **Fixed Compilation Errors**: Resolved syntax errors in `BulkImageController` and `BulkExportTabView` that occurred during the initial refactor.
-    // - **Optimized Size Calculation**: Switched to using pre-calculated sizes from the state in the "Save to History" logic, resolving type inference issues and improving performance.
-    // - **Division by Zero Safety**: Added checks to prevent division by zero when calculating space savings.
-
-    return '${mb.toStringAsFixed(2)} MB (${kb.toStringAsFixed(0)} KB)';
-  }
+  // Replaced by FileUtils.formatBytesDetailed
 }
+

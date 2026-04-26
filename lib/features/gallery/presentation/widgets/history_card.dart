@@ -11,6 +11,9 @@ import 'package:reducer/features/gallery/data/models/history_item.dart';
 import 'package:gal/gal.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:reducer/core/services/permission_service.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:reducer/core/utils/file_utils.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class HistoryCard extends StatelessWidget {
   final HistoryItem item;
@@ -47,10 +50,10 @@ class HistoryCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                   child: appDocDir == null
                       ? Container(
-                          width: 72,
-                          height: 72,
+                          width: 72.r,
+                          height: 72.r,
                           color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          child: Center(child: CircularProgressIndicator(strokeWidth: 2.r)),
                         )
                       : Builder(builder: (context) {
                           final thumbPath = item.getAbsoluteThumbnailPath(appDocDir!);
@@ -58,17 +61,17 @@ class HistoryCard extends StatelessWidget {
                           return file.existsSync()
                               ? Image.file(
                                   file,
-                                  width: 72,
-                                  height: 72,
+                                  width: 72.r,
+                                  height: 72.r,
                                   fit: BoxFit.cover,
                                   cacheWidth: 144, // 2x for retina displays
                                   cacheHeight: 144,
                                 )
                               : Container(
-                                  width: 72,
-                                  height: 72,
+                                  width: 72.r,
+                                  height: 72.r,
                                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                                  child: const Icon(Iconsax.image, color: Colors.grey),
+                                  child: Icon(Iconsax.image, color: Colors.grey, size: 24.r),
                                 );
                         }),
                 ),
@@ -82,7 +85,7 @@ class HistoryCard extends StatelessWidget {
                         children: [
                           if (item.isBulk) ...[
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                               decoration: BoxDecoration(
                                 color: AppColors.secondaryContainer,
                                 borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
@@ -90,10 +93,10 @@ class HistoryCard extends StatelessWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Iconsax.grid_5, size: 10, color: AppColors.secondaryDark),
-                                  const SizedBox(width: 4),
+                                  Icon(Iconsax.grid_5, size: 10.r, color: AppColors.secondaryDark),
+                                  SizedBox(width: 4.w),
                                   Text(
-                                    'BULK (${item.itemCount})',
+                                    AppLocalizations.of(context)!.bulkCountLabel(item.itemCount),
                                     style: AppTextStyles.badgeLabel(context).copyWith(color: AppColors.secondaryDark),
                                   ),
                                 ],
@@ -102,7 +105,7 @@ class HistoryCard extends StatelessWidget {
                             const SizedBox(width: AppSpacing.sm),
                           ],
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
                             decoration: BoxDecoration(
                               color: AppColors.primaryContainer,
                               borderRadius: BorderRadius.circular(AppSpacing.radiusXs),
@@ -121,17 +124,17 @@ class HistoryCard extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
-                        '${_formatSize(item.originalSize)} → ${_formatSize(item.processedSize)}',
+                        '${FileUtils.formatBytes(item.originalSize)} → ${FileUtils.formatBytes(item.processedSize)}',
                         style: AppTextStyles.titleSmall(context),
                       ),
                       if (item.compressionPercent > 0) ...[
                         const SizedBox(height: AppSpacing.xs),
                         Row(
                           children: [
-                            const Icon(Iconsax.arrow_down, size: 12, color: AppColors.success),
-                            const SizedBox(width: 4),
+                            Icon(Iconsax.arrow_down, size: 12.r, color: AppColors.success),
+                            SizedBox(width: 4.w),
                             Text(
-                              '${item.compressionPercent.toStringAsFixed(1)}% smaller',
+                              '${item.compressionPercent.toStringAsFixed(1)}% ${AppLocalizations.of(context)!.smaller}',
                               style: AppTextStyles.labelSmall(context).copyWith(color: AppColors.success),
                             ),
                           ],
@@ -141,7 +144,7 @@ class HistoryCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
-                const Icon(Iconsax.arrow_right_3, size: 16, color: Colors.grey),
+                Icon(Iconsax.arrow_right_3, size: 16.r, color: Colors.grey),
               ],
             ),
           ),
@@ -153,8 +156,8 @@ class HistoryCard extends StatelessWidget {
   void _showActionSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) => Container(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -162,26 +165,29 @@ class HistoryCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
+              width: 40.w,
+              height: 4.h,
+              margin: EdgeInsets.only(bottom: 20.h),
               decoration: BoxDecoration(
                 color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(2.r),
               ),
             ),
-            Text('Image Actions', style: AppTextStyles.titleMedium(context)),
-            const SizedBox(height: 24),
+            Text(
+              AppLocalizations.of(context)!.imageActions,
+              style: AppTextStyles.titleMedium(context),
+            ),
+            SizedBox(height: 24.h),
             ListTile(
               leading: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Iconsax.save_2, color: AppColors.primary),
+                child: Icon(Iconsax.save_2, color: AppColors.primary, size: 24.r),
               ),
-              title: const Text('Save to Gallery'),
+              title: Text(AppLocalizations.of(context)!.saveToGallery),
               onTap: () async {
                 Navigator.pop(context);
                 final path = item.getAbsoluteProcessedPaths(appDocDir ?? '').firstOrNull;
@@ -191,49 +197,54 @@ class HistoryCard extends StatelessWidget {
                     await Gal.putImage(path, album: 'Reducer');
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Saved to gallery!'), behavior: SnackBarBehavior.floating),
+                        SnackBar(
+                          content: Text(AppLocalizations.of(context)!.savedToGallerySuccess),
+                          behavior: SnackBarBehavior.floating,
+                        ),
                       );
                     }
                   }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Processed file not found'), behavior: SnackBarBehavior.floating),
+                    SnackBar(
+                      content: Text(AppLocalizations.of(context)!.processedFileNotFound),
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 }
               },
             ),
             ListTile(
               leading: Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: AppColors.secondary.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Iconsax.share, color: AppColors.secondary),
+                child: Icon(Iconsax.share, color: AppColors.secondary, size: 24.r),
               ),
-              title: const Text('Share Image'),
+              title: Text(AppLocalizations.of(context)!.shareImage),
               onTap: () async {
                 Navigator.pop(context);
                 final path = item.getAbsoluteProcessedPaths(appDocDir ?? '').firstOrNull;
                 if (path != null && File(path).existsSync()) {
-                  await Share.shareXFiles([XFile(path)]);
+                  await SharePlus.instance.share(
+                    ShareParams(files: [XFile(path)]),
+                  );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Processed file not found'), behavior: SnackBarBehavior.floating),
+                    SnackBar(
+                      content: Text(AppLocalizations.of(context)!.processedFileNotFound),
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 }
               },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
           ],
         ),
       ),
     );
-  }
-
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '${bytes}B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
   }
 }

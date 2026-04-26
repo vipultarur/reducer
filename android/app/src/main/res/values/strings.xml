@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_quick_compress">Compress</string>
+    <string name="shortcut_quick_compress_long">Quick Compress Image</string>
+    <string name="shortcut_bulk_compress">Bulk</string>
+    <string name="shortcut_bulk_compress_long">Bulk Image Processing</string>
+</resources>

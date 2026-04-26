@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:iconsax/iconsax.dart';
@@ -11,6 +11,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:reducer/core/services/permission_service.dart';
 import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/shared/presentation/widgets/ads/banner_ad_widget.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class BulkHistoryDetailScreen extends StatefulWidget {
   final HistoryItem item;
@@ -45,40 +47,40 @@ class _BulkHistoryDetailScreenState extends State<BulkHistoryDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Bulk Session Details'),
+        title: Text(AppLocalizations.of(context)!.bulkSessionDetails),
       ),
       body: Column(
         children: [
           const BannerAdWidget(),
           // Header summary card
           Container(
-            padding: const EdgeInsets.all(20),
-            margin: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(20.r),
+            margin: EdgeInsets.all(16.r),
             decoration: AppTheme.cardDecoration(context),
             child: Column(
               children: [
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: EdgeInsets.all(12.r),
                       decoration: BoxDecoration(
                         color: Colors.orange.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Iconsax.grid_5, color: Colors.orange),
+                      child: Icon(Iconsax.grid_5, color: Colors.orange, size: 24.r),
                     ),
-                    const SizedBox(width: 16),
+                    SizedBox(width: 16.w),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${widget.item.itemCount} Images Processed',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            AppLocalizations.of(context)!.xImagesProcessed(widget.item.itemCount),
+                            style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
                           ),
                           Text(
                             DateFormat('MMMM dd, yyyy • HH:mm').format(widget.item.timestamp),
-                            style: const TextStyle(color: Colors.grey),
+                            style: TextStyle(color: Colors.grey, fontSize: 12.sp),
                           ),
                         ],
                       ),
@@ -89,8 +91,8 @@ class _BulkHistoryDetailScreenState extends State<BulkHistoryDetailScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStat('Format', widget.item.settings.format.name.toUpperCase()),
-                    _buildStat('Quality', '${widget.item.settings.quality}%'),
+                    _buildStat(AppLocalizations.of(context)!.format, widget.item.settings.format.name.toUpperCase()),
+                    _buildStat(AppLocalizations.of(context)!.imageQuality, '${widget.item.settings.quality}%'),
                     _buildStat('Total Sav.', '${widget.item.compressionPercent.toStringAsFixed(1)}%'),
                   ],
                 ),
@@ -98,13 +100,13 @@ class _BulkHistoryDetailScreenState extends State<BulkHistoryDetailScreen> {
             ),
           ),
 
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 8.h),
             child: Row(
               children: [
                 Text(
                   'Processed Images',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
@@ -117,17 +119,19 @@ class _BulkHistoryDetailScreenState extends State<BulkHistoryDetailScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Iconsax.image, size: 48, color: Colors.grey[300]),
-                        const SizedBox(height: 16),
+                        Icon(Iconsax.image, size: 48.r, color: Colors.grey[300]),
+                        SizedBox(height: 16.h),
                         Text(
-                          _appDocDir == null ? 'Loading images...' : 'No images found in this session',
-                          style: const TextStyle(color: Colors.grey),
+                          _appDocDir == null 
+                              ? AppLocalizations.of(context)!.loadingImages 
+                              : AppLocalizations.of(context)!.noImagesFoundInSession,
+                          style: TextStyle(color: Colors.grey, fontSize: 14.sp),
                         ),
                       ],
                     ),
                   )
                 : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
                     itemCount: _resolvedPaths.length,
                     itemBuilder: (context, index) {
                       final path = _resolvedPaths[index];
@@ -135,32 +139,32 @@ class _BulkHistoryDetailScreenState extends State<BulkHistoryDetailScreen> {
                       final fileName = p.basename(path);
 
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
+                        margin: EdgeInsets.only(bottom: 12.h),
                         child: ListTile(
-                          contentPadding: const EdgeInsets.all(8),
+                          contentPadding: EdgeInsets.all(8.r),
                           leading: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(8.r),
                             child: file.existsSync()
                                 ? Image.file(
                                     file,
-                                    width: 60,
-                                    height: 60,
+                                    width: 60.r,
+                                    height: 60.r,
                                     fit: BoxFit.cover,
                                     cacheWidth: 120, // 2x for retina
                                     cacheHeight: 120,
                                   )
                                 : Container(
-                                    width: 60,
-                                    height: 60,
+                                    width: 60.r,
+                                    height: 60.r,
                                     color: Colors.grey[200],
-                                    child: const Icon(Iconsax.image),
+                                    child: Icon(Iconsax.image, size: 24.r),
                                   ),
                           ),
                           title: Text(
                             fileName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                            style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
                           ),
                           subtitle: FutureBuilder<int>(
                             future: file.existsSync() ? file.length() : Future.value(0),
@@ -175,22 +179,25 @@ class _BulkHistoryDetailScreenState extends State<BulkHistoryDetailScreen> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon: const Icon(Iconsax.share, size: 20, color: AppColors.secondary),
+                                icon: Icon(Iconsax.share, size: 20.r, color: AppColors.secondary),
                                 onPressed: () async {
                                   if (file.existsSync()) {
-                                    await Share.shareXFiles([XFile(path)]);
+                                    await SharePlus.instance.share(
+                                      ShareParams(files: [XFile(path)]),
+                                    );
                                   }
                                 },
                               ),
                               IconButton(
-                                icon: const Icon(Iconsax.save_2, size: 20, color: AppColors.primary),
+                                icon: Icon(Iconsax.save_2, size: 20.r, color: AppColors.primary),
                                 onPressed: () async {
+                                  final messenger = ScaffoldMessenger.of(context);
                                   if (file.existsSync()) {
                                     final ok = await PermissionService.instance.ensurePhotosPermission(context);
                                     if (ok) {
                                       await Gal.putImage(path, album: 'Reducer');
                                       if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        messenger.showSnackBar(
                                           const SnackBar(content: Text('Saved to gallery!'), behavior: SnackBarBehavior.floating),
                                         );
                                       }
@@ -213,9 +220,9 @@ class _BulkHistoryDetailScreenState extends State<BulkHistoryDetailScreen> {
   Widget _buildStat(String label, String value) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(label, style: TextStyle(fontSize: 12.sp, color: Colors.grey)),
+        SizedBox(height: 4.h),
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14.sp)),
       ],
     );
   }
@@ -226,4 +233,5 @@ class _BulkHistoryDetailScreenState extends State<BulkHistoryDetailScreen> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
   }
 }
+
 

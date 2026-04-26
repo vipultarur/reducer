@@ -38,3 +38,4 @@ class ConnectivityService {
     isConnected.dispose();
   }
 }
+

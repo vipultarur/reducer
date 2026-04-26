@@ -11,10 +11,18 @@ import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
 import 'package:reducer/features/settings/presentation/widgets/settings_tile.dart';
 import 'package:reducer/features/settings/presentation/widgets/settings_section_header.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
+
+import 'package:reducer/core/services/remote_config_service.dart';
+import 'package:reducer/core/services/auth_service.dart';
+
+import 'package:reducer/core/services/review_service.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
+
+  String get _appStoreUrl => RemoteConfigService().appStoreUrl;
 
   Future<void> _launchUrl(String urlString) async {
     final url = Uri.parse(urlString);
@@ -23,22 +31,71 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
+  Future<void> _requestReview() async {
+    await ReviewService().openStoreListing();
+  }
+
   void _shareApp(BuildContext context) {
     SharePlus.instance.share(
       ShareParams(
-        text: 'Check out Reducer - The ultimate image compression and processing tool! Download here: https://play.google.com/store/apps/details?id=com.tarurinfotech.reducer',
+        text: AppLocalizations.of(context)!.shareAppText(_appStoreUrl),
         subject: 'Reducer',
       ),
     );
   }
 
+  Future<void> _showDeleteAccountDialog(BuildContext context, WidgetRef ref) async {
+    final user = ref.read(authServiceProvider).currentUser;
+    final userEmail = user?.email ?? 'N/A';
+    final userId = user?.uid ?? 'N/A';
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account?'),
+        content: const Text(
+          'A deletion request will be sent to our support team. '
+          'Your account will be reviewed and deleted within a few business days.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Request Deletion'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final subject = Uri.encodeComponent('Account Deletion Request - Reducer');
+      final body = Uri.encodeComponent(
+        'Hello,\n\n'
+        'I would like to request the deletion of my Reducer account.\n\n'
+        'Account Details:\n'
+        'User ID: $userId\n'
+        'Email: $userEmail\n\n'
+        'Please delete my account and all associated data.\n\n'
+        'Thank you.',
+      );
+      final mailtoUrl = 'mailto:tarurinfotech@gmail.com?subject=$subject&body=$body';
+      await _launchUrl(mailtoUrl);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final premiumState = ref.watch(premiumControllerProvider);
+    final authUser = ref.watch(authStateProvider).value;
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Settings', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 20)),
+        title: Text(l10n.settings, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 20)),
         elevation: 0,
         centerTitle: false,
       ),
@@ -47,26 +104,26 @@ class SettingsScreen extends ConsumerWidget {
         children: [
           // ── Premium Section ───────────────────────────────────────────────
           if (!premiumState.isPro) ...[
-            const SettingsSectionHeader(title: 'Subscription'),
+            SettingsSectionHeader(title: l10n.subscription),
 
             Card(
               child: ListTile(
                 leading: const Icon(Iconsax.crown, color: AppColors.premium),
-                title: const Text('Upgrade to Pro'),
-                subtitle: const Text('Unlock all features & remove ads'),
+                title: Text(l10n.upgradeToPro),
+                subtitle: Text(l10n.upgradeSubtitle),
                 trailing: const Icon(Iconsax.arrow_right_3, size: 16),
                 onTap: () => context.push('/premium'),
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
           ] else ...[
-            const SettingsSectionHeader(title: 'Subscription'),
+            SettingsSectionHeader(title: l10n.subscription),
 
             Card(
               child: ListTile(
                 leading: const Icon(Iconsax.verify, color: AppColors.success),
-                title: const Text('Reducer Pro Active'),
-                subtitle: const Text('Thank you for your support!'),
+                title: Text(l10n.proActive),
+                subtitle: Text(l10n.supportThanks),
                 onTap: () => context.push('/premium'),
               ),
             ),
@@ -74,7 +131,7 @@ class SettingsScreen extends ConsumerWidget {
           ],
 
           // ── Support & Feedback ──────────────────────────────────────────────
-          const SettingsSectionHeader(title: 'Support & Feedback'),
+          SettingsSectionHeader(title: l10n.supportAndFeedback),
 
           Card(
             clipBehavior: Clip.antiAlias,
@@ -83,40 +140,73 @@ class SettingsScreen extends ConsumerWidget {
                 SettingsTile(
 
                   icon: Iconsax.star,
-                  title: 'Rate on Play Store',
-                  onTap: () => _launchUrl('https://play.google.com/store/apps/details?id=com.tarurinfotech.reducer'),
+                  title: l10n.rateOnPlayStore,
+                  onTap: () => _requestReview(),
                 ),
                 const Divider(),
                 SettingsTile(
 
                   icon: Iconsax.share,
-                  title: 'Share Reducer',
+                  title: l10n.shareReducer,
                   onTap: () => _shareApp(context),
                 ),
                 const Divider(),
                 SettingsTile(
 
                   icon: Iconsax.message_question,
-                  title: 'Contact Support',
-                  onTap: () => _launchUrl('mailto:support@tarurinfotech.com?subject=Reducer%20Support'),
+                  title: l10n.contactSupport,
+                  onTap: () => _launchUrl('mailto:${RemoteConfigService().supportEmail}?subject=Reducer%20Support'),
                 ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.xl),
-
-          // ── About ───────────────────────────────────────────────────────────
-          const SettingsSectionHeader(title: 'About'),
+          // ── Preferences ───────────────────────────────────────────────────
+          SettingsSectionHeader(title: l10n.preferences),
 
           Card(
             clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
                 SettingsTile(
+                  icon: Iconsax.language_square,
+                  title: l10n.selectLanguage,
+                  onTap: () => context.push('/language-selection?fromSettings=true'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl),
 
+          // ── Account Section ──────────────────────────────────────────────
+          if (authUser != null && !authUser.isAnonymous) ...[
+            const SettingsSectionHeader(title: 'Account'),
+            Card(
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                   SettingsTile(
+                    icon: Iconsax.user_remove,
+                    title: 'Delete Account',
+                    onTap: () => _showDeleteAccountDialog(context, ref),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+          ],
+
+          // ── About ───────────────────────────────────────────────────────────
+          SettingsSectionHeader(title: l10n.about),
+
+          Card(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                SettingsTile(
                   icon: Iconsax.shield_tick,
-                  title: 'Privacy Policy',
-                  onTap: () => context.push('/privacy-policy'),
+                  title: l10n.privacyPolicy,
+                  onTap: () => _launchUrl('https://tarurinfotech.base44.app/privacy/reducer'),
                 ),
                 const Divider(),
                 FutureBuilder<PackageInfo>(
@@ -126,8 +216,8 @@ class SettingsScreen extends ConsumerWidget {
                     final build = snapshot.data?.buildNumber ?? '1';
                     return ListTile(
                       leading: const Icon(Iconsax.info_circle),
-                      title: const Text('Version'),
-                      trailing: Text('$version ($build)', style: const TextStyle(color: Colors.grey)),
+                      title: Text(l10n.version),
+                      trailing: Text('$version ($build)', style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant)),
                     );
                   },
                 ),
@@ -138,8 +228,8 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: AppSpacing.xl2),
           Center(
             child: Text(
-              'Made with ♥ by Tarur Infotech',
-              style: AppTextStyles.bodySmall(context).copyWith(color: Colors.grey),
+              l10n.madeWithHeart,
+              style: AppTextStyles.bodySmall(context).copyWith(color: Theme.of(context).brightness == Brightness.dark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant),
             ),
           ),
         ],
@@ -147,4 +237,5 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 }
+
 

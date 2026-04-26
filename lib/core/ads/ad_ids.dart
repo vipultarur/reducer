@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:reducer/core/services/remote_config_service.dart';
 
 // ── Ad Unit IDs ─────────────────────────────────────────────────────────────
 // FIX: Always use TEST IDs in debug mode — production IDs return "No fill" (error 3)
@@ -13,22 +14,21 @@ class AdIds {
   static const String _testNative        = 'ca-app-pub-3940256099942544/2247696110';
   static const String _testRewarded      = 'ca-app-pub-3940256099942544/5224354917';
 
-  // ── Android production ad unit IDs ────────────────────────────────────────
-  static const String _androidBanner       = 'ca-app-pub-9155918242947466/4133195707';
-  static const String _androidInterstitial = 'ca-app-pub-9155918242947466/9249791016';
-  static const String _androidAppOpen      = 'ca-app-pub-9155918242947466/8096491449';
-  static const String _androidNative       = 'ca-app-pub-9155918242947466/2346295726';
-  static const String _androidRewarded     = 'ca-app-pub-9155918242947466/1743660491';
+  // ── Android production ad unit IDs (from Remote Config) ───────────────────
+  static String get _androidBanner => RemoteConfigService().getString('ad_android_banner');
+  static String get _androidInterstitial => RemoteConfigService().getString('ad_android_interstitial');
+  static String get _androidAppOpen => RemoteConfigService().getString('ad_android_app_open');
+  static String get _androidNative => RemoteConfigService().getString('ad_android_native');
+  static String get _androidRewarded => RemoteConfigService().getString('ad_android_rewarded');
 
-  // ── iOS production ad unit IDs ────────────────────────────────────────────
-  static const String _iosBanner           = 'ca-app-pub-3940256099942544/2934735716';
-  static const String _iosInterstitial     = 'ca-app-pub-3940256099942544/4411468910';
-  static const String _iosAppOpen          = 'ca-app-pub-3940256099942544/5662855259';
-  static const String _iosNative           = 'ca-app-pub-3940256099942544/3986624511';
-  static const String _iosRewarded         = 'ca-app-pub-3940256099942544/1712485313';
+  // ── iOS production ad unit IDs (from Remote Config) ───────────────────────
+  static String get _iosBanner => RemoteConfigService().getString('ad_ios_banner');
+  static String get _iosInterstitial => RemoteConfigService().getString('ad_ios_interstitial');
+  static String get _iosAppOpen => RemoteConfigService().getString('ad_ios_app_open');
+  static String get _iosNative => RemoteConfigService().getString('ad_ios_native');
+  static String get _iosRewarded => RemoteConfigService().getString('ad_ios_rewarded');
 
   // ── Platform-resolved getters ─────────────────────────────────────────────
-  // KEY FIX: kDebugMode → use test IDs, kReleaseMode → use production IDs
   static String get bannerId {
     if (kDebugMode) return _testBanner;
     return Platform.isAndroid ? _androidBanner : _iosBanner;
@@ -54,3 +54,4 @@ class AdIds {
     return Platform.isAndroid ? _androidRewarded : _iosRewarded;
   }
 }
+

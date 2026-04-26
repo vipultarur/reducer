@@ -74,6 +74,25 @@ class AuthService {
       debugPrint('[AuthService] Sign-out failed: $e');
     }
   }
+  
+  /// Delete user account (Required for Store compliance)
+  Future<Result<void>> deleteUserAccount() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return Result.failure('No user logged in.');
+      
+      await user.delete();
+      return Result.success(null);
+    } on FirebaseAuthException catch (e) {
+      debugPrint('[AuthService] Account deletion failed: ${e.code}');
+      if (e.code == 'requires-recent-login') {
+        return Result.failure('Please re-login to delete your account for security.', e);
+      }
+      return Result.failure(_mapAuthError(e.code), e);
+    } catch (e) {
+      return Result.failure('An unexpected error occurred during account deletion.', e);
+    }
+  }
 
   String _mapAuthError(String code) {
     switch (code) {
@@ -86,3 +105,4 @@ class AuthService {
     }
   }
 }
+

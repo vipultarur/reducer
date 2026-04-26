@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:reducer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   final String? redirectTo;
@@ -44,7 +45,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration failed: ${e.toString()}')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.registrationFailed(e.toString()))),
         );
       }
     }
@@ -57,7 +58,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google Sign-In failed: ${e.toString()}')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.googleSignInFailed(e.toString()))),
         );
       }
     }
@@ -131,7 +132,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'Create Account',
+                      AppLocalizations.of(context)!.createAccount,
                       style: theme.textTheme.headlineLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: theme.colorScheme.onSurface,
@@ -140,7 +141,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Join Reducer and start creating',
+                      AppLocalizations.of(context)!.joinAndStart,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurface.withValues(
                           alpha: 0.6,
@@ -154,7 +155,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     TextFormField(
                       controller: _nameController,
                       decoration: InputDecoration(
-                        labelText: 'Full Name',
+                        labelText: AppLocalizations.of(context)!.fullName,
                         prefixIcon: const Icon(Iconsax.user),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -162,10 +163,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter name';
+                          return AppLocalizations.of(context)!.pleaseEnterName;
                         }
                         if (value.trim().length < 2) {
-                          return 'Name must be at least 2 characters';
+                          return AppLocalizations.of(context)!.nameLengthError;
                         }
                         return null;
                       },
@@ -177,7 +178,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
-                        labelText: 'Email Address',
+                        labelText: AppLocalizations.of(context)!.emailAddress,
                         prefixIcon: const Icon(Iconsax.sms),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -185,10 +186,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter email';
+                          return AppLocalizations.of(context)!.pleaseEnterEmail;
                         }
                         if (!_emailRegex.hasMatch(value.trim())) {
-                          return 'Please enter a valid email';
+                          return AppLocalizations.of(context)!.pleaseEnterValidEmail;
                         }
                         return null;
                       },
@@ -200,7 +201,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       controller: _passwordController,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
-                        labelText: 'Password',
+                        labelText: AppLocalizations.of(context)!.password,
                         prefixIcon: const Icon(Iconsax.lock),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -216,13 +217,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Please enter password';
+                          return AppLocalizations.of(context)!.pleaseEnterPassword;
                         }
                         if (value.length < 8) {
-                          return 'Password must be at least 8 characters';
+                          return AppLocalizations.of(context)!.passwordLengthErrorRegister;
                         }
                         if (!value.contains(RegExp(r'[^a-zA-Z]'))) {
-                          return 'Password must contain at least one number or special character';
+                          return AppLocalizations.of(context)!.passwordComplexityError;
                         }
                         return null;
                       },
@@ -242,9 +243,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       ),
                       child: isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Register',
-                              style: TextStyle(
+                          : Text(
+                              AppLocalizations.of(context)!.register,
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -258,7 +259,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         Expanded(child: Divider(color: theme.dividerColor)),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text('OR', style: theme.textTheme.bodySmall),
+                          child: Text(AppLocalizations.of(context)!.or, style: theme.textTheme.bodySmall),
                         ),
                         Expanded(child: Divider(color: theme.dividerColor)),
                       ],
@@ -280,7 +281,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           width: 18,
                         ),
                       ),
-                      label: const Text('Register with Google'),
+                      label: Text(AppLocalizations.of(context)!.registerWithGoogle),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -295,14 +296,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Already have an account?',
+                          AppLocalizations.of(context)!.alreadyHaveAccount,
                           style: theme.textTheme.bodyMedium,
                         ),
                         TextButton(
                           onPressed: () => context.go(_loginRoute()),
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(fontWeight: FontWeight.bold),
+                          child: Text(
+                            AppLocalizations.of(context)!.login,
+                            style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
@@ -317,3 +318,4 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 }
+

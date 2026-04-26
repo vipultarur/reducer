@@ -1,0 +1,160 @@
+{
+  "parameters": {
+    "ad_android_banner": {
+      "defaultValue": {
+        "value": "ca-app-pub-9155918242947466/4133195707"
+      },
+      "description": "Android Banner Ad Unit ID"
+    },
+    "ad_android_interstitial": {
+      "defaultValue": {
+        "value": "ca-app-pub-9155918242947466/9249791016"
+      },
+      "description": "Android Interstitial Ad Unit ID"
+    },
+    "ad_android_app_open": {
+      "defaultValue": {
+        "value": "ca-app-pub-9155918242947466/8096491449"
+      },
+      "description": "Android App Open (Splash) Ad Unit ID"
+    },
+    "ad_android_native": {
+      "defaultValue": {
+        "value": "ca-app-pub-9155918242947466/2346295726"
+      },
+      "description": "Android Native Ad Unit ID"
+    },
+    "ad_android_rewarded": {
+      "defaultValue": {
+        "value": "ca-app-pub-9155918242947466/1743660491"
+      },
+      "description": "Android Rewarded Ad Unit ID"
+    },
+    "ad_ios_banner": {
+      "defaultValue": {
+        "value": "ca-app-pub-3940256099942544/2934735716"
+      },
+      "description": "iOS Banner Ad Unit ID"
+    },
+    "ad_ios_interstitial": {
+      "defaultValue": {
+        "value": "ca-app-pub-3940256099942544/4411468910"
+      },
+      "description": "iOS Interstitial Ad Unit ID"
+    },
+    "ad_ios_app_open": {
+      "defaultValue": {
+        "value": "ca-app-pub-3940256099942544/5662855259"
+      },
+      "description": "iOS App Open Ad Unit ID"
+    },
+    "ad_ios_native": {
+      "defaultValue": {
+        "value": "ca-app-pub-3940256099942544/3986624511"
+      },
+      "description": "iOS Native Ad Unit ID"
+    },
+    "ad_ios_rewarded": {
+      "defaultValue": {
+        "value": "ca-app-pub-3940256099942544/1712485313"
+      },
+      "description": "iOS Rewarded Ad Unit ID"
+    },
+    "iap_product_id": {
+      "defaultValue": {
+        "value": "ai_image_pro"
+      },
+      "description": "Primary subscription product ID"
+    },
+    "iap_monthly_plan_id": {
+      "defaultValue": {
+        "value": "monthly-plan"
+      },
+      "description": "Monthly base plan ID"
+    },
+    "iap_yearly_plan_id": {
+      "defaultValue": {
+        "value": "yearly-plan"
+      },
+      "description": "Yearly base plan ID"
+    },
+    "iap_test_plan_id": {
+      "defaultValue": {
+        "value": "test-plan"
+      },
+      "description": "Test base plan ID"
+    },
+    "ad_interstitial_gap_seconds": {
+      "defaultValue": {
+        "value": "30"
+      },
+      "description": "Minimum seconds between interstitial ads"
+    },
+    "ad_app_open_gap_seconds": {
+      "defaultValue": {
+        "value": "30"
+      },
+      "description": "Minimum seconds between app open ads"
+    },
+    "ad_retry_base_seconds": {
+      "defaultValue": {
+        "value": "30"
+      },
+      "description": "Base seconds for ad load retry backoff"
+    },
+    "ad_retry_max_seconds": {
+      "defaultValue": {
+        "value": "1800"
+      },
+      "description": "Maximum seconds for ad load retry backoff"
+    },
+    "support_email": {
+      "defaultValue": {
+        "value": "tarurinfotech@gmail.com"
+      },
+      "description": "Customer support contact email"
+    },
+    "app_store_url": {
+      "defaultValue": {
+        "value": "https://play.google.com/store/apps/details?id=com.tarurinfotech.reducer"
+      },
+      "description": "Google Play Store URL"
+    },
+    "max_file_size_mb": {
+      "defaultValue": {
+        "value": "50"
+      },
+      "description": "Maximum allowed image file size in Megabytes"
+    },
+    "max_image_dimension": {
+      "defaultValue": {
+        "value": "10000"
+      },
+      "description": "Maximum allowed width or height in pixels"
+    },
+    "force_update_enabled": {
+      "defaultValue": {
+        "value": "false"
+      },
+      "description": "Flag to enable force update check"
+    },
+    "force_update_min_version": {
+      "defaultValue": {
+        "value": "1.3.1"
+      },
+      "description": "Minimum required version to prevent force update"
+    },
+    "maintenance_mode": {
+      "defaultValue": {
+        "value": "false"
+      },
+      "description": "Global flag to disable app for maintenance"
+    },
+    "ads_enabled": {
+      "defaultValue": {
+        "value": "true"
+      },
+      "description": "Global kill switch for all ads"
+    }
+  }
+}

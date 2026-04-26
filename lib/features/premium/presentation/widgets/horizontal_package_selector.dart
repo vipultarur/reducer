@@ -3,12 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 import 'package:reducer/features/premium/presentation/widgets/package_card.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class HorizontalPackageSelector extends ConsumerWidget {
   const HorizontalPackageSelector({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(premiumControllerProvider);
     final notifier = ref.read(premiumControllerProvider.notifier);
 
@@ -18,28 +21,28 @@ class HorizontalPackageSelector extends ConsumerWidget {
       children: [
         Row(
           children: [
-            const Expanded(child: Divider(height: 1, color: Colors.white10)),
+            const Expanded(child: Divider(height: 1, color: Colors.black12)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
               child: Text(
-                'SELECT PLAN',
-                style: const TextStyle(
-                  fontSize: 11,
+                l10n.selectPlan,
+                style: TextStyle(
+                  fontSize: 10.sp,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white24,
-                  letterSpacing: 1.0,
+                  color: Colors.black38,
+                  letterSpacing: 1.0.w,
                 ),
               ),
             ),
-            const Expanded(child: Divider(height: 1, color: Colors.white10)),
+            const Expanded(child: Divider(height: 1, color: Colors.black12)),
           ],
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: state.availablePackages.map((package) {
-            // Show dynamic savings badge for yearly plan
-            final savingsText = _calculateSavings(state, package);
+            // Show Popular badge on Yearly plan
+            final isPopular = package.isYearly;
             
             return Expanded(
               child: Stack(
@@ -51,28 +54,20 @@ class HorizontalPackageSelector extends ConsumerWidget {
                     isSelected: package == state.selectedPackage,
                     onTap: () => notifier.selectPackage(package),
                   ),
-                  if (savingsText != null)
+                  if (isPopular)
                     Positioned(
-                      top: -12,
+                      top: -12.h,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 4.h),
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFEAB308), Color(0xFFFACC15)],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFEAB308).withValues(alpha: 0.3),
-                              blurRadius: 8,
-                            )
-                          ],
+                          color: const Color(0xFFFACC15),
+                          borderRadius: BorderRadius.circular(20.r),
                         ),
                         child: Text(
-                          savingsText,
-                          style: const TextStyle(
+                          l10n.popular,
+                          style: TextStyle(
                             color: Colors.black,
-                            fontSize: 9,
+                            fontSize: 9.sp,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -87,28 +82,5 @@ class HorizontalPackageSelector extends ConsumerWidget {
     );
   }
 
-  /// Calculate savings for a plan compared to the monthly plan.
-  /// Returns null if no savings badge should be shown.
-  String? _calculateSavings(PurchaseState state, package) {
-    if (!package.isYearly) return null;
-
-    // Find the monthly plan to compare against
-    final monthlyPlan = state.availablePackages
-        .where((p) => p.isMonthly)
-        .firstOrNull;
-
-    if (monthlyPlan == null) return 'BEST VALUE';
-
-    final monthlyMicros = monthlyPlan.priceAmountMicros;
-    final yearlyMonthlyEquiv = package.monthlyEquivalentMicros;
-
-    if (monthlyMicros <= 0) return 'BEST VALUE';
-
-    final savingsPercent = ((monthlyMicros - yearlyMonthlyEquiv) / monthlyMicros * 100).round();
-
-    if (savingsPercent > 0) {
-      return 'SAVES $savingsPercent%';
-    }
-    return 'BEST VALUE';
-  }
 }
+

@@ -8,6 +8,7 @@ import 'package:reducer/core/utils/image_processor.dart';
 import 'package:reducer/core/utils/image_validator.dart';
 import 'package:reducer/core/utils/thumbnail_generator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 part 'single_image_controller.g.dart';
 
@@ -74,7 +75,7 @@ class SingleImageController extends _$SingleImageController {
     return SingleImageState();
   }
 
-  Future<void> pickImage(ImageSource source) async {
+  Future<void> pickImage(ImageSource source, AppLocalizations l10n) async {
     state = state.copyWith(isGeneratingThumbnail: true);
     
     final picker = ImagePicker();
@@ -86,13 +87,12 @@ class SingleImageController extends _$SingleImageController {
     }
 
     final bytes = await pickedFile.readAsBytes();
-    final validation = await ImageValidator.validateImage(bytes);
+    final validation = await ImageValidator.validateImage(bytes, l10n);
     
     if (!validation.isValid) {
       state = state.copyWith(isGeneratingThumbnail: false);
-      // We'll handle dialog show in the UI via a listener if needed, 
-      // but for now let's just stop.
-      return;
+      // We return the validation result to the UI so it can show the error dialog
+      throw validation; 
     }
 
     final thumbnail = await ThumbnailGenerator.generateThumbnailFromXFile(
@@ -162,3 +162,4 @@ class SingleImageController extends _$SingleImageController {
 }
 
 final singleImageTabIndexProvider = StateProvider.autoDispose<int>((ref) => 0);
+

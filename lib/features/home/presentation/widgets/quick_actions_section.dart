@@ -6,6 +6,7 @@ import 'package:reducer/core/ads/ad_manager.dart';
 import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 import 'tool_card.dart';
 
 class QuickActionsSection extends StatelessWidget {
@@ -13,6 +14,7 @@ class QuickActionsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
@@ -21,20 +23,18 @@ class QuickActionsSection extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Quick Start', style: AppTextStyles.titleLarge(context)),
+            Text(l10n.quickStart, style: AppTextStyles.titleLarge(context)),
             TextButton(
               onPressed: () {}, // Could lead to a guide or "How it works"
               child: Text(
-                'How it works',
+                l10n.howItWorks,
                 style: AppTextStyles.labelSmall(context).copyWith(color: AppColors.primary),
               ),
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.md),
-        
         // Hero Action Card
-        _buildHeroCard(context, isDark),
+        _buildHeroCard(context, isDark, l10n),
         
         const SizedBox(height: AppSpacing.lg),
         
@@ -43,24 +43,24 @@ class QuickActionsSection extends StatelessWidget {
           children: [
             Expanded(
               child: ToolCard(
-                title: 'Convert',
-                subtitle: 'PNG, WebP, etc.',
+                title: l10n.convert,
+                subtitle: l10n.convertSubtitle,
                 icon: Iconsax.refresh,
                 color: AppColors.secondary,
                 onTap: () => AdManager().showInterstitialAd(
-                  onComplete: () => context.push('/single-editor'),
+                  onComplete: () => context.go('/single-editor'),
                 ),
               ),
             ),
             const SizedBox(width: AppSpacing.lg),
             Expanded(
               child: ToolCard(
-                title: 'History',
-                subtitle: 'Recent edits',
+                title: l10n.history,
+                subtitle: l10n.historySubtitle,
                 icon: Iconsax.clock,
-                color: Colors.orangeAccent,
+                color: AppColors.premium,
                 onTap: () => AdManager().showInterstitialAd(
-                  onComplete: () => context.push('/gallery'),
+                  onComplete: () => context.go('/gallery'),
                 ),
               ),
             ),
@@ -70,7 +70,7 @@ class QuickActionsSection extends StatelessWidget {
     ).animate().fadeIn(delay: 100.ms, duration: 400.ms).slideY(begin: 0.1, end: 0);
   }
 
-  Widget _buildHeroCard(BuildContext context, bool isDark) {
+  Widget _buildHeroCard(BuildContext context, bool isDark, AppLocalizations l10n) {
     return Container(
       width: double.infinity,
       height: 160,
@@ -87,7 +87,7 @@ class QuickActionsSection extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: () => AdManager().showInterstitialAd(
-            onComplete: () => context.push('/single-editor'),
+            onComplete: () => context.go('/single-editor'),
           ),
           borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
           child: Padding(
@@ -108,14 +108,14 @@ class QuickActionsSection extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Text(
-                      'Optimize Image',
+                      l10n.optimizeImage,
                       style: AppTextStyles.titleLarge(context).copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     Text(
-                      'Reduce size while maintaining quality',
+                      l10n.optimizeSubtitle,
                       style: AppTextStyles.bodySmall(context).copyWith(
                         color: Colors.white70,
                       ),
@@ -144,3 +144,4 @@ class QuickActionsSection extends StatelessWidget {
     );
   }
 }
+

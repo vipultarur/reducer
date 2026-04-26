@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:reducer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:iconsax/iconsax.dart';
@@ -10,6 +11,7 @@ import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/theme_provider.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -24,9 +26,10 @@ class ProfileScreen extends ConsumerWidget {
         await ref.read(authControllerProvider.notifier).updateProfileImage(file);
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile image updated successfully!'),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.profileImageUpdated),
               backgroundColor: AppColors.success,
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
@@ -34,8 +37,9 @@ class ProfileScreen extends ConsumerWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Upload failed: $e'),
+              content: Text(AppLocalizations.of(context)!.uploadFailed(e.toString())),
               backgroundColor: AppColors.error,
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
@@ -45,369 +49,353 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userAsync = ref.watch(userProvider);
-    final authState = ref.watch(authProvider).value;
-    final isLoading = ref.watch(authControllerProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final userAsync = ref.watch(userProvider);
+    final isLoading = ref.watch(authControllerProvider);
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: userAsync.when(
         data: (user) {
-          if (user == null) {
-            return _buildLoggedOutState(context);
-          }
+          if (user == null) return _buildLoggedOutState(context);
 
           return CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
+              // 1. Immersive Header
+              _buildSliverHeader(context, ref, user, isDark, isLoading),
 
-
-              // 2. Content Body
+              // 2. Content Sections
               SliverToBoxAdapter(
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    // Main Card Container
-                    Container(
-                      margin: const EdgeInsets.only(top: 60),
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 80, AppSpacing.xl, AppSpacing.xl),
-                      decoration: BoxDecoration(
-                        color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                      ),
-                      child: Column(
-                        children: [
-                          // Name & Bio
-                          Text(
-                            user.name,
-                            style: AppTextStyles.headlineMedium(context).copyWith(
-                              color: isDark ? AppColors.onDarkBackground : AppColors.onLightBackground,
-                            ),
-                          ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.2),
-                          const SizedBox(height: 4),
-                          Text(
-                            user.email,
-                            style: AppTextStyles.bodyMedium(context).copyWith(
-                              color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
-                            ),
-                          ).animate().fadeIn(delay: 100.ms, duration: 400.ms),
-                          
-                          const SizedBox(height: AppSpacing.xl),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.xl),
+                  child: Column(
+                    children: [
+                      // Stats Highlighting
+                      _buildStatsGrid(context, user, isDark),
+                      const SizedBox(height: AppSpacing.xl2),
 
-                          // Stats Row
-                          _buildStatsRow(context, user).animate().fadeIn(delay: 200.ms).scale(begin: const Offset(0.9, 0.9)),
+                      // Subscription Status Card
+                      _buildSubscriptionStatusCard(context, user, isDark),
+                      const SizedBox(height: AppSpacing.xl2),
 
-                          const SizedBox(height: AppSpacing.xl3),
+                      // Settings & Preferences
+                      _buildSettingsSection(context, ref, isDark),
+                      const SizedBox(height: AppSpacing.xl2),
 
-                          // Upgrade Card (If not premium)
-                          if (user.subscriptionStatus != 'premium')
-                            _buildPremiumCard(context).animate().shimmer(delay: 1.seconds, duration: 2.seconds),
-
-                          const SizedBox(height: AppSpacing.xl),
-
-                          // Settings Groups
-                          _buildSettingsGroup(
-                            context,
-                            title: 'Account Settings',
-                            items: [
-                              _SettingsTile(
-                                icon: Iconsax.user_edit,
-                                title: 'Display Name',
-                                value: user.name,
-                                color: Colors.blue,
-                              ),
-                              _SettingsTile(
-                                icon: Iconsax.sms,
-                                title: 'Email Address',
-                                value: user.email,
-                                color: Colors.orange,
-                              ),
-                              if (user.subscriptionStatus == 'premium' && user.expiryDate != null)
-                                _SettingsTile(
-                                  icon: Iconsax.calendar_tick,
-                                  title: 'Subscription Ends',
-                                  value: user.expiryDate!.toLocal().toString().split(' ')[0],
-                                  color: Colors.amber,
-                                ),
-                            ],
-                          ).animate().fadeIn(delay: 300.ms).slideX(begin: 0.1),
-
-                          _buildThemeSelector(context, ref).animate().fadeIn(delay: 400.ms).slideX(begin: 0.1),
-
-                          const SizedBox(height: AppSpacing.xl),
-
-                          _buildSettingsGroup(
-                            context,
-                            title: 'Account Actions',
-                            items: [
-                              _SettingsTile(
-                                icon: Iconsax.logout,
-                                title: 'Sign Out',
-                                value: 'Disconnect your account',
-                                color: Colors.red,
-                                onTap: () => _showLogoutDialog(context, ref),
-                              ),
-                            ],
-                          ).animate().fadeIn(delay: 500.ms).slideX(begin: 0.1),
-
-                          const SizedBox(height: AppSpacing.xl3),
-
-                          // Delete Account (Optional/Danger Zone)
-                          TextButton(
-                            onPressed: () {},
-                            child: Text(
-                              'Privacy Policy & Terms',
-                              style: TextStyle(color: isDark ? Colors.white24 : Colors.grey),
-                            ),
-                          ),
-                          const SizedBox(height: 100), // Extra space for bottom nav
-                        ],
-                      ),
-                    ),
-
-                    // Overlapping Avatar
-                    Positioned(
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      child: Center(
-                        child: Stack(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-                                shape: BoxShape.circle,
-                                boxShadow: isDark ? AppColors.cardShadowDark : AppColors.cardShadowLight,
-                              ),
-                              child: CircleAvatar(
-                                radius: 60,
-                                backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.primaryContainer,
-                                backgroundImage: user.profileImageUrl != null
-                                    ? NetworkImage(user.profileImageUrl!)
-                                    : null,
-                                child: user.profileImageUrl == null
-                                    ? Text(
-                                        user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                                        style: AppTextStyles.displayMedium(context).copyWith(
-                                          color: isDark ? AppColors.onDarkSurface : AppColors.primary,
-                                        ),
-                                      )
-                                    : null,
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 4,
-                              right: 4,
-                              child: GestureDetector(
-                                onTap: isLoading ? null : () => _pickAndUploadImage(context, ref),
-                                child: Container(
-                                  padding: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-                                      width: 3,
-                                    ),
-                                    boxShadow: AppColors.buttonShadow,
-                                  ),
-                                  child: Icon(
-                                    isLoading ? Icons.hourglass_empty : Iconsax.camera,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ).animate().scale(delay: 200.ms, curve: Curves.easeOutBack),
-                    ),
-                  ],
+                      // Danger Zone / Account Actions
+                      _buildAccountActions(context, ref, isDark),
+                      
+                      const SizedBox(height: 120), // Bottom padding
+                    ],
+                  ),
                 ),
               ),
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, s) => Center(child: Text('Error: $e')),
       ),
     );
   }
 
-  Widget _buildLoggedOutState(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Iconsax.user_minus, size: 80, color: Colors.grey).animate().shake(),
-          const SizedBox(height: 24),
-          Text(
-            'Authentication Required',
-            style: AppTextStyles.headlineSmall(context),
-          ),
-          const SizedBox(height: 12),
-          const Text('Sign in to sync your progress across devices'),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () => context.go('/login?redirect=${Uri.encodeComponent('/profile')}'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  Widget _buildSliverHeader(BuildContext context, WidgetRef ref, user, bool isDark, bool isLoading) {
+    return SliverAppBar(
+      expandedHeight: 280.h,
+      pinned: true,
+      stretch: true,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      elevation: 0,
+      flexibleSpace: FlexibleSpaceBar(
+        stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+        background: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Modern Gradient Background
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: isDark 
+                    ? [AppColors.darkSurface, AppColors.darkBackground]
+                    : [const Color(0xFFE2E8F0), AppColors.lightBackground],
+                ),
+              ),
             ),
-            child: const Text('Login / Sign Up'),
-          ),
-        ],
+            
+            // Decorative Blur Circles
+            Positioned(
+              top: -50.h,
+              right: -50.w,
+              child: Container(
+                width: 200.r,
+                height: 200.r,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primary.withValues(alpha: isDark ? 0.1 : 0.05),
+                ),
+              ).animate().scale(duration: 2.seconds, curve: Curves.easeInOut).fadeIn(),
+            ),
+
+            // Profile Main Info
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(height: 48.h),
+                // Animated Avatar
+                Stack(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 54.r,
+                        backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                        backgroundImage: user.profileImageUrl != null ? NetworkImage(user.profileImageUrl!) : null,
+                        child: user.profileImageUrl == null
+                          ? Text(
+                              user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                              style: AppTextStyles.headlineLarge(context).copyWith(
+                                color: isDark ? Colors.white : AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                      ),
+                    ).animate().scale(duration: 600.ms, curve: Curves.easeOutBack),
+                    
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: isLoading ? null : () => _pickAndUploadImage(context, ref),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
+                          ),
+                          child: Icon(
+                            isLoading ? Icons.sync : Iconsax.camera,
+                            color: Colors.white,
+                            size: 16.r,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20.h),
+                Text(
+                  user.name,
+                  style: AppTextStyles.headlineSmall(context).copyWith(
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.5,
+                  ),
+                ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.2, end: 0),
+                Text(
+                  user.email,
+                  style: AppTextStyles.bodyMedium(context).copyWith(
+                    color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2, end: 0),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildStatsRow(BuildContext context, user) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.darkSurface : Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: isDark ? [] : AppColors.cardShadowLight,
-        border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _StatItem(
-            label: 'Images Done',
+  Widget _buildStatsGrid(BuildContext context, user, bool isDark) {
+    return Row(
+      children: [
+        Expanded(
+          child: _StatsTile(
+            label: AppLocalizations.of(context)!.imagesStudio,
             value: user.aiImagesGenerated.toString(),
             icon: Iconsax.image,
-            color: Colors.blue,
+            color: AppColors.primary,
+            isDark: isDark,
           ),
-          Container(height: 30, width: 1, color: isDark ? Colors.white10 : Colors.black12),
-          _StatItem(
-            label: 'Member Since',
-            value: '${user.createdAt.year}',
-            icon: Iconsax.calendar_1,
-            color: Colors.purple,
+        ),
+        const SizedBox(width: AppSpacing.lg),
+        Expanded(
+            child: _StatsTile(
+            label: AppLocalizations.of(context)!.memberSince,
+            value: "${user.createdAt.year}",
+            icon: Iconsax.calendar_tick,
+            color: AppColors.secondary,
+            isDark: isDark,
           ),
-          Container(height: 30, width: 1, color: isDark ? Colors.white10 : Colors.black12),
-          _StatItem(
-            label: 'Status',
-            value: user.subscriptionStatus == 'premium' ? 'Pro' : 'Free',
-            icon: user.subscriptionStatus == 'premium' ? Iconsax.crown: Iconsax.user,
-            color: user.subscriptionStatus == 'premium' ? Colors.amber : Colors.grey,
-          ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1, end: 0);
   }
 
-  Widget _buildPremiumCard(BuildContext context) {
+  Widget _buildSubscriptionStatusCard(BuildContext context, user, bool isDark) {
+    final isPro = user.subscriptionStatus == 'premium';
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: AppColors.premiumGradient,
+        gradient: isPro ? const LinearGradient(
+          colors: [Color(0xFF1E293B), AppColors.darkBackground],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
+        ) : null,
+        color: !isPro ? (isDark ? AppColors.darkSurface : AppColors.lightSurface) : null,
+        borderRadius: BorderRadius.circular(28.r),
+        border: Border.all(
+          color: isPro ? const Color(0xFFFACC15).withValues(alpha: 0.2) : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          width: 1,
         ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: AppColors.premiumButtonShadow,
+        boxShadow: !isDark && !isPro ? [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10))] : null,
       ),
       child: Row(
         children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: (isPro ? const Color(0xFFFACC15) : AppColors.onLightSurfaceVariant).withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isPro ? Iconsax.crown : Iconsax.user,
+              color: isPro ? const Color(0xFFFACC15) : (isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant),
+              size: 28.r,
+            ),
+          ),
+          const SizedBox(width: 20),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Unlock Reducer Pro',
-                  style: AppTextStyles.titleLarge(context).copyWith(color: Colors.white),
+                  isPro ? AppLocalizations.of(context)!.proActive : AppLocalizations.of(context)!.freeMember,
+                  style: AppTextStyles.titleLarge(context).copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: isPro ? Colors.white : (isDark ? AppColors.onDarkSurface : AppColors.onLightSurface),
+                  ),
                 ),
-                const SizedBox(height: 4),
                 Text(
-                  'Ad-free experience, unlimited storage & bulk processing.',
-                  style: AppTextStyles.bodyMedium(context).copyWith(color: Colors.white.withValues(alpha: 0.8)),
+                  isPro ? AppLocalizations.of(context)!.fullAccessUnlocked : AppLocalizations.of(context)!.basicToolsEnabled,
+                  style: AppTextStyles.bodyMedium(context).copyWith(
+                    color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 12),
-          ElevatedButton(
-            onPressed: () => context.go('/premium'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppColors.premium,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+          if (!isPro)
+            ElevatedButton(
+              onPressed: () => context.push('/premium'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(AppLocalizations.of(context)!.goPro),
+            )
+          else 
+            IconButton(
+              onPressed: () => context.push('/premium'),
+              icon: const Icon(Iconsax.arrow_right_3, color: Colors.white24),
             ),
-            child: const Text('Upgrade'),
-          ),
         ],
       ),
-    );
+    ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.1, end: 0);
   }
 
-  Widget _buildSettingsGroup(BuildContext context, {required String title, required List<_SettingsTile> items}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget _buildSettingsSection(BuildContext context, WidgetRef ref, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 8, bottom: 12),
-          child: Text(title, style: AppTextStyles.titleMedium(context)),
-        ),
-        Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
-          ),
-          child: Column(
-            children: items,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildThemeSelector(BuildContext context, WidgetRef ref) {
-    final currentTheme = ref.watch(themeModeProvider);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 8, bottom: 12),
-          child: Text('App Theme', style: AppTextStyles.titleMedium(context)),
-        ),
+        _SectionLabel(label: AppLocalizations.of(context)!.preferences, isDark: isDark),
+        const SizedBox(height: AppSpacing.lg),
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+            borderRadius: BorderRadius.circular(24.r),
             border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
           ),
-          child: SegmentedButton<ThemeMode>(
-            segments: const [
-              ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Iconsax.sun_1)),
-              ButtonSegment(value: ThemeMode.system, label: Text('Auto'), icon: Icon(Iconsax.setting)),
-              ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Iconsax.moon)),
+          child: Column(
+            children: [
+              _ThemeSegmentedPicker(isDark: isDark),
             ],
-            selected: {currentTheme},
-            onSelectionChanged: (set) => ref.read(themeModeProvider.notifier).setThemeMode(set.first),
-            style: SegmentedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              selectedBackgroundColor: AppColors.primary,
-              selectedForegroundColor: Colors.white,
-              side: BorderSide.none,
-            ),
           ),
         ),
       ],
+    ).animate().fadeIn(delay: 600.ms);
+  }
+
+  Widget _buildAccountActions(BuildContext context, WidgetRef ref, bool isDark) {
+    return Column(
+      children: [
+        _ProfileTile(
+          icon: Iconsax.logout,
+          label: AppLocalizations.of(context)!.logOut,
+          color: AppColors.error,
+          isDark: isDark,
+          onTap: () => _showLogoutDialog(context, ref),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _ProfileTile(
+          icon: Iconsax.user_remove,
+          label: AppLocalizations.of(context)!.deleteAccount,
+          color: AppColors.error,
+          isDark: isDark,
+          onTap: () => _showDeleteAccountDialog(context, ref),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text(
+          AppLocalizations.of(context)!.appVersionLabel("1.5.0"),
+          style: TextStyle(
+            color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
+            fontSize: 11.sp,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ).animate().fadeIn(delay: 700.ms);
+  }
+
+  void _showDeleteAccountDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.deleteAccount),
+        content: Text(AppLocalizations.of(context)!.deleteAccountConfirmation),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.cancel)),
+          TextButton(
+            onPressed: () async {
+              try {
+                await ref.read(authControllerProvider.notifier).deleteAccount();
+                if (context.mounted) Navigator.pop(context);
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.toString()), backgroundColor: Colors.redAccent),
+                  );
+                  Navigator.pop(context);
+                }
+              }
+            },
+            child: Text(AppLocalizations.of(context)!.delete, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -415,16 +403,53 @@ class ProfileScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to sign out of your account?'),
+        title: Text(AppLocalizations.of(context)!.logOut),
+        content: Text(AppLocalizations.of(context)!.logOutConfirmation),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.stay)),
           TextButton(
             onPressed: () {
               ref.read(authControllerProvider.notifier).logout();
               Navigator.pop(context);
             },
-            child: const Text('Logout', style: TextStyle(color: Colors.red)),
+            child: Text(AppLocalizations.of(context)!.logOut, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoggedOutState(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(40),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Iconsax.user_tag, size: 100, color: AppColors.primary).animate().scale().fadeIn(),
+          const SizedBox(height: 32),
+          Text(
+            AppLocalizations.of(context)!.accountStudio,
+            style: AppTextStyles.headlineMedium(context).copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            AppLocalizations.of(context)!.signInRequiredDescription,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.grey, height: 1.5),
+          ),
+          const SizedBox(height: 48),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => context.go('/login?redirect=${Uri.encodeComponent('/profile')}'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              child: Text(AppLocalizations.of(context)!.startSession, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+            ),
           ),
         ],
       ),
@@ -432,64 +457,134 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _StatItem extends StatelessWidget {
+class _StatsTile extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
   final Color color;
+  final bool isDark;
 
-  const _StatItem({required this.label, required this.value, required this.icon, required this.color});
+  const _StatsTile({required this.label, required this.value, required this.icon, required this.color, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: 8),
-        Text(value, style: AppTextStyles.titleMedium(context).copyWith(fontWeight: FontWeight.bold)),
-        Text(
-          label, 
-          style: AppTextStyles.labelSmall(context).copyWith(
-            color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
+        boxShadow: !isDark ? [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 5))] : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 18),
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          Text(
+            value,
+            style: AppTextStyles.headlineSmall(context).copyWith(fontWeight: FontWeight.w900),
+          ),
+          Text(
+            label,
+            style: AppTextStyles.labelSmall(context).copyWith(color: isDark ? Colors.white54 : Colors.black45),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _SettingsTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  final Color color;
-  final VoidCallback? onTap;
-
-  const _SettingsTile({required this.icon, required this.title, required this.value, required this.color, this.onTap});
+class _SectionLabel extends StatelessWidget {
+  final String label;
+  final bool isDark;
+  const _SectionLabel({required this.label, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.5,
+          color: isDark ? Colors.white24 : Colors.black26,
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeSegmentedPicker extends ConsumerWidget {
+  final bool isDark;
+  const _ThemeSegmentedPicker({required this.isDark});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentTheme = ref.watch(themeModeProvider);
+    return SizedBox(
+      width: double.infinity,
+      child: SegmentedButton<ThemeMode>(
+        segments: [
+          ButtonSegment(value: ThemeMode.light, label: Text(AppLocalizations.of(context)!.light), icon: const Icon(Iconsax.sun_1, size: 16)),
+          ButtonSegment(value: ThemeMode.system, label: Text(AppLocalizations.of(context)!.auto), icon: const Icon(Iconsax.setting, size: 16)),
+          ButtonSegment(value: ThemeMode.dark, label: Text(AppLocalizations.of(context)!.dark), icon: const Icon(Iconsax.moon, size: 16)),
+        ],
+        selected: {currentTheme},
+        onSelectionChanged: (set) => ref.read(themeModeProvider.notifier).setThemeMode(set.first),
+        style: SegmentedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          selectedBackgroundColor: AppColors.primary,
+          selectedForegroundColor: Colors.white,
+          side: BorderSide.none,
+          padding: const EdgeInsets.symmetric(vertical: 0),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _ProfileTile({required this.icon, required this.label, required this.color, required this.isDark, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
     return ListTile(
       onTap: onTap,
+      tileColor: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.05)),
+      ),
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: color, size: 20),
       ),
-      title: Text(title, style: AppTextStyles.labelMedium(context)),
-      subtitle: Text(
-        value, 
-        style: AppTextStyles.bodyMedium(context).copyWith(
-          fontWeight: FontWeight.bold,
-          color: isDark ? Colors.white : Colors.black87,
-        ),
+      title: Text(
+        label,
+        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
       ),
       trailing: const Icon(Iconsax.arrow_right_3, size: 16, color: Colors.grey),
     );
   }
 }
+

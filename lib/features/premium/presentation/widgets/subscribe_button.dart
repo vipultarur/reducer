@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 import 'package:reducer/features/auth/presentation/providers/auth_providers.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:reducer/features/premium/presentation/widgets/premium_login_required_block.dart';
 
 class SubscribeButton extends ConsumerWidget {
@@ -13,16 +15,24 @@ class SubscribeButton extends ConsumerWidget {
     final state = ref.watch(premiumControllerProvider);
     final authState = ref.watch(authProvider).value;
     final notifier = ref.read(premiumControllerProvider.notifier);
+    final l10n = AppLocalizations.of(context)!;
 
     // Build button text from selected plan
     final selectedPlan = state.selectedPackage;
-    final buttonText = selectedPlan != null
-        ? 'Subscribe ${selectedPlan.price} / ${selectedPlan.isYearly ? "year" : (selectedPlan.isMonthly ? "month" : selectedPlan.periodName.toLowerCase())}'
-        : 'START PRO ACCESS';
+    
+    String buttonText;
+    if (selectedPlan != null) {
+      final period = selectedPlan.isYearly 
+          ? l10n.year 
+          : (selectedPlan.isMonthly ? l10n.month : selectedPlan.periodName.toLowerCase());
+      buttonText = l10n.subscribeWithPrice(selectedPlan.price, period);
+    } else {
+      buttonText = l10n.startProAccess;
+    }
 
     // Trial text if available
     final trialText = selectedPlan?.trialPeriod != null
-        ? 'Start with ${selectedPlan!.trialPeriod} free trial'
+        ? l10n.trialPeriodText(selectedPlan!.trialPeriod!)
         : null;
 
     return Column(
@@ -37,16 +47,16 @@ class SubscribeButton extends ConsumerWidget {
                     backgroundColor: Colors.transparent,
                     isScrollControlled: true,
                     builder: (context) => Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF1A1D27),
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                      padding: EdgeInsets.all(24.r),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1D27),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(32.r)),
                       ),
-                      child: const Column(
+                      child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          PremiumLoginRequiredBlock(),
-                          SizedBox(height: 16),
+                          const PremiumLoginRequiredBlock(),
+                          SizedBox(height: 16.h),
                         ],
                       ),
                     ),
@@ -57,58 +67,53 @@ class SubscribeButton extends ConsumerWidget {
               },
           child: Container(
             width: double.infinity,
-            height: 64,
+            height: 56.h,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFEAB308), Color(0xFFFACC15), Color(0xFFEAB308)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(18),
+              color: Colors.black87,
+              borderRadius: BorderRadius.circular(16.r),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFEAB308).withValues(alpha: 0.4),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                  spreadRadius: -5,
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 10.r,
+                  offset: Offset(0, 4.h),
                 ),
               ],
             ),
             child: Center(
               child: state.isLoading
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
+                  ? SizedBox(
+                      width: 24.r,
+                      height: 24.r,
                       child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                        strokeWidth: 3.r,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
                   : Text(
                       buttonText.toUpperCase(),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                        letterSpacing: 1.0,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14.sp,
+                        letterSpacing: 1.0.w,
                       ),
                     ),
             ),
           ),
         ).animate(onPlay: (c) => c.repeat(reverse: true)).scale(
           begin: const Offset(1, 1),
-          end: const Offset(1.02, 1.02),
+          end: const Offset(1.01, 1.01),
           duration: 1500.ms,
           curve: Curves.easeInOut,
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         // Show trial info or fallback text
         Text(
-          trialText ?? 'Cancel anytime. Secure checkout.',
+          trialText ?? l10n.cancelAnytime,
           style: TextStyle(
-            color: trialText != null ? const Color(0xFF22C55E).withValues(alpha: 0.8) : Colors.white38,
-            fontSize: 11,
+            color: trialText != null ? const Color(0xFF16A34A).withValues(alpha: 0.9) : Colors.black38,
+            fontSize: 11.sp,
             fontWeight: trialText != null ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
@@ -116,3 +121,4 @@ class SubscribeButton extends ConsumerWidget {
     );
   }
 }
+

@@ -1,0 +1,407 @@
+{
+  "@@locale": "en",
+  "selectLanguage": "Select Language",
+  "continueLabel": "Continue",
+  "searchLanguage": "Search Language...",
+  "welcomeToReducer": "Welcome to Reducer",
+  "setupLanguageSubtitle": "Select your preferred language to get started with the best image optimization experience.",
+  "appTitle": "REDUCER",
+  "@appTitle": {
+    "description": "The name of the application"
+  },
+  "homeTitle": "Studio",
+  "bulkStudio": "Bulk Studio",
+  "history": "History",
+  "profile": "Profile",
+  "singleEditor": "Single Editor",
+  "startBatchProcessing": "Start Batch Processing",
+  "selectImages": "Select Images",
+  "saveToGallery": "Save to Gallery",
+  "share": "Share",
+  "processing": "Processing",
+  "settings": "Settings",
+  "premium": "Premium",
+  "compressionSuccess": "✓ Saved to Gallery!",
+  "freeLimitMessage": "Free users: limit 50 images. Upgrade for more.",
+  "quickStart": "Quick Start",
+  "howItWorks": "How it works",
+  "optimizeImage": "Optimize Image",
+  "optimizeSubtitle": "Reduce size while maintaining quality",
+  "convert": "Convert",
+  "convertSubtitle": "PNG, WebP, etc.",
+  "historySubtitle": "Recent edits",
+  "advancedTools": "Advanced Tools",
+  "proBadge": "PRO",
+  "bulkProcessing": "Bulk Processing",
+  "bulkSubtitle": "Process up to 50 images at once",
+  "exifEraser": "EXIF Eraser",
+  "exifSubtitle": "Remove metadata for privacy",
+  "viewHistory": "Edit History",
+  "viewHistorySubtitle": "View and export past edits",
+  "unlockReducerPro": "Unlock Reducer Pro",
+  "unlockAllProFeatures": "Unlock All Pro Features",
+  "proDescription": "Bulk processing and ad-free experience are available for Pro members. Join our community today!",
+  "promoSubtitle": "Bulk processing, no ads, high quality export & more.",
+  "upgradeToPro": "Upgrade to Pro",
+  "upgradeNow": "Upgrade Now",
+  "maybeLater": "Maybe Later",
+  "compress": "Compress",
+  "resize": "Resize",
+  "format": "Format",
+  "export": "Export",
+  "processImage": "Process Image",
+  "showBefore": "Show Before",
+  "showAfter": "Show After",
+  "originalSize": "Original size",
+  "compressed": "Compressed",
+  "dimensions": "Dimensions",
+  "readyToExport": "Ready to export!",
+  "applyChangesMessage": "Apply your changes and click \"Process Image\" to generate your final result.",
+  "itemRemoved": "Item removed from history",
+  "selectOutputFormat": "Select Output Format",
+  "formatDescription": "Choose the file type that best fits your needs",
+  "targetFileSize": "Target File Size",
+  "imageQuality": "Image Quality",
+  "smallerFile": "Smaller file",
+  "higherQuality": "Higher quality",
+  "sizeHint": "e.g. 2.5",
+  "customDimensions": "Custom Dimensions",
+  "width": "Width",
+  "height": "Height",
+  "lockAspectRatio": "Lock aspect ratio",
+  "aspectRatioMaintained": "Aspect ratio maintained",
+  "transform": "Transform",
+  "flipHorizontal": "Flip horizontal",
+  "pickImageToStart": "Pick an image to start",
+  "pickImageSubtitle": "Choose from your gallery or take a new photo",
+  "gallery": "Gallery",
+  "camera": "Camera",
+  "failedToSave": "Failed to save: {error}",
+  "@failedToSave": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "failedToShare": "Failed to share: {error}",
+  "@failedToShare": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "processingDot": "Processing...",
+  "shareWithReducer": "Processed with Reducer",
+  "batchOptimizationComplete": "BATCH OPTIMIZATION COMPLETE",
+  "smaller": "Smaller",
+  "freeUserLimit": "Free users: limit 50 images. Upgrade for more.",
+  "batchProcessing": "Batch Processing",
+  "batchDescription": "Optimize hundreds of images in one go",
+  "selectMultipleImages": "Select Multiple Images",
+  "bulkSettingsNote": "Settings will be applied to ALL selected images.",
+  "bulkResizeNote": "Percentage scaling is recommended for bulk batches.",
+  "bulkFormatNote": "All converted images will be saved in the selected format.",
+  "autoQualityActive": "Automatic Quality Mode Active: Quality slider will be ignored to hit your target size.",
+  "scalePercentRecommended": "Scale % (Recommended)",
+  "chooseOutputFormat": "Choose Output Format",
+  "bestForPhotos": "Best for photos",
+  "bestForGraphics": "Best for graphics",
+  "modernAndSmall": "Modern & Small",
+  "uncompressed": "Uncompressed",
+  "original": "Original",
+  "fixedDimensionsExpert": "Fixed Dimensions (Expert)",
+  "totalOriginal": "Total Original",
+  "totalCompressed": "Total Compressed",
+  "spaceSaved": "Space Saved",
+  "saveAll": "Save All",
+  "zip": "ZIP",
+  "processingProgress": "Processing ({percent}%)...",
+  "@processingProgress": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "savedXImages": "✓ Saved {count} images!",
+  "@savedXImages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "zipError": "ZIP error: {error}",
+  "@zipError": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "processedImages": "Processed images",
+  "galleryEmpty": "Nothing here yet",
+  "noPastEdits": "No past edits found",
+  "galleryEmptyDescription": "Process and export images\nto see them here",
+  "startNewEdit": "Start New Edit",
+  "unableToLoadHistory": "Unable to load history right now",
+  "retry": "Retry",
+  "clearHistoryTitle": "Clear History?",
+  "clearHistoryMessage": "This will remove all past edits from history. This action cannot be undone.",
+  "cancel": "Cancel",
+  "clear": "Clear",
+  "savedImages": "Saved {count} images!",
+  "subscription": "Subscription",
+  "upgradeSubtitle": "Unlock all features & remove ads",
+  "proActive": "Reducer Pro Active",
+  "supportThanks": "Thank you for your support!",
+  "supportAndFeedback": "Support & Feedback",
+  "rateOnPlayStore": "Rate on Play Store",
+  "shareReducer": "Share Reducer",
+  "contactSupport": "Contact Support",
+  "profileImageUpdated": "Profile image updated!",
+  "uploadFailed": "Upload failed: {error}",
+  "@uploadFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "imagesStudio": "Images Studio",
+  "memberSince": "Member Since",
+  "freeMember": "Free Member",
+  "basicToolsEnabled": "Basic tools enabled",
+  "goPro": "Go Pro",
+  "preferences": "Preferences",
+  "logOut": "Log Out",
+  "logOutConfirmation": "Ready to leave? Your progress is safely synced to the cloud.",
+  "stay": "Stay",
+  "accountStudio": "Account Studio",
+  "startSession": "Start Session",
+  "light": "Light",
+  "auto": "Auto",
+  "dark": "Dark",
+  "appVersionLabel": "Reducer Image Studio v{version}",
+  "@appVersionLabel": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "loginFailed": "Login failed: {error}",
+  "googleSignInFailed": "Google Sign-In failed: {error}",
+  "resetPassword": "Reset Password",
+  "resetPasswordDescription": "Enter your email address and we will send you a link to reset your password.",
+  "emailAddress": "Email Address",
+  "sendResetLink": "Send Reset Link",
+  "passwordResetSent": "Password reset email sent! Please check your inbox.",
+  "welcomeBack": "Welcome Back",
+  "loginContinue": "Log in to continue using Reducer",
+  "pleaseEnterEmail": "Please enter email",
+  "pleaseEnterValidEmail": "Please enter a valid email",
+  "password": "Password",
+  "pleaseEnterPassword": "Please enter password",
+  "passwordLengthError": "Password must be at least 6 characters",
+  "forgotPassword": "Forgot Password?",
+  "login": "Login",
+  "or": "OR",
+  "continueWithGoogle": "Continue with Google",
+  "dontHaveAccount": "Don't have an account?",
+  "register": "Register",
+  "continueAsGuest": "Continue as Guest",
+  "registrationFailed": "Registration failed: {error}",
+  "createAccount": "Create Account",
+  "joinAndStart": "Join Reducer and start creating",
+  "fullName": "Full Name",
+  "pleaseEnterName": "Please enter name",
+  "nameLengthError": "Name must be at least 2 characters",
+  "passwordComplexityError": "Password must contain at least one number or special character",
+  "passwordLengthErrorRegister": "Password must be at least 8 characters",
+  "registerWithGoogle": "Register with Google",
+  "alreadyHaveAccount": "Already have an account?",
+  "premiumMembership": "PRO MEMBERSHIP",
+  "eliteMember": "Elite Member",
+  "fullAccessActive": "Full access to Reducer Studio is active on your account.",
+  "currentPlan": "Current Plan",
+  "statusLabel": "Status",
+  "startDate": "Start Date",
+  "nextBilling": "Next Billing",
+  "manageSubscription": "Manage Subscription",
+  "lifetime": "Lifetime",
+  "proAccess": "PRO ACCESS",
+  "unlockStudio": "Unlock the Full Studio",
+  "premiumSubtitle": "Get high-performance tools, AI upscaling,\nand an absolute ad-free experience.",
+  "featureBulkStudio": "Bulk Studio (Batch Resize & Export)",
+  "featureAiTurbo": "AI Turbo Upscaling & Clean",
+  "featureZeroAds": "Zero Ads. Absolute Privacy.",
+  "featureDirectZip": "Direct ZIP & 4K Collections",
+  "subscribeNow": "Subscribe Now",
+  "unlockPro": "Unlock Pro",
+  "cancelAnytime": "Cancel anytime. Secure checkout.",
+  "restorePurchases": "Restore Purchases",
+  "termsOfService": "Terms of Service",
+  "noPlansAvailable": "No plans available at the moment.",
+  "tryAgainLater": "Please try again later or contact support.",
+  "errorOccurred": "Oops! Something went wrong",
+  "mostPopular": "MOST POPULAR",
+  "bestValue": "BEST VALUE",
+  "selectPlan": "SELECT PLAN",
+  "savePercent": "SAVES {percent}%",
+  "@savePercent": {
+    "placeholders": {
+      "percent": {
+        "type": "String"
+      }
+    }
+  },
+  "freeTrial": "{days} Days Free Trial",
+  "@freeTrial": {
+    "placeholders": {
+      "days": {
+        "type": "String"
+      }
+    }
+  },
+  "clearHistoryContent": "This will remove all past edits from history. This action cannot be undone.",
+  "historyLoadError": "Unable to load history right now",
+  "imageActions": "Image Actions",
+  "shareImage": "Share Image",
+  "savedToGallerySuccess": "Saved to gallery!",
+  "processedFileNotFound": "Processed file not found",
+  "bulkCountLabel": "BULK ({count})",
+  "resultSummary": "RESULT SUMMARY",
+  "output": "OUTPUT",
+  "saved": "SAVED",
+  "formatLabel": "FORMAT",
+  "optimizationComplete": "Optimization Complete! 🎉",
+  "bulkOptimizationResult": "Reduced {count} images: {original} → {compressed} ({reduction}% smaller)",
+  "@bulkOptimizationResult": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "original": {
+        "type": "String"
+      },
+      "compressed": {
+        "type": "String"
+      },
+      "reduction": {
+        "type": "String"
+      }
+    }
+  },
+  "imageTooLarge": "Image too large ({size} MB).\nMaximum size is 50MB.",
+  "largeFileWarning": "Large file detected. Processing may take longer.",
+  "imageDimensionsTooLarge": "Image dimensions too large ({width}x{height}).\nMaximum is 10000x10000 pixels.",
+  "cannotDecodeImage": "Cannot decode image.\nFile may be corrupted or invalid format.",
+  "errorReadingImage": "Error reading image: {error}",
+  "error": "Error",
+  "warning": "Warning",
+  "ok": "OK",
+  "continueAnyway": "Continue Anyway",
+  "bulkSessionDetails": "Bulk Session Details",
+  "xImagesProcessed": "{count} Images Processed",
+  "loadingImages": "Loading images...",
+  "noImagesFoundInSession": "No images found in this session",
+  "signInRequired": "Sign in required",
+  "signInRequiredDescription": "To access pro features and sync your edits across devices, please sign in to your account.",
+  "signInNow": "Sign In Now",
+  "loginRequiredForPremium": "Login required for Premium",
+  "guestModePremiumMessage": "You are using guest mode. Login to subscribe, restore purchases, and unlock Pro tools.",
+  "subscribeWithPrice": "Subscribe {price} / {period}",
+  "@subscribeWithPrice": {
+    "placeholders": {
+      "price": {
+        "type": "String"
+      },
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "startProAccess": "START PRO ACCESS",
+  "trialPeriodText": "Start with {period} free trial",
+  "@trialPeriodText": {
+    "placeholders": {
+      "period": {
+        "type": "String"
+      }
+    }
+  },
+  "yearly": "YEARLY",
+  "monthly": "MONTHLY",
+  "trial": "TRIAL",
+  "year": "year",
+  "month": "month",
+  "yearSuffix": "/year",
+  "monthSuffix": "/month",
+  "freeLabel": "FREE",
+  "permissionRequiredToAccessPhotos": "Permission required to access photos",
+  "unableToOpenGallery": "Unable to open gallery: {error}",
+  "storagePermissionRequiredToSave": "Storage permission required to save",
+  "failedToCleanMetadata": "Failed to clean metadata",
+  "errorCleaningMetadata": "Error cleaning metadata: {error}",
+  "success": "Success!",
+  "exifSuccessMessage": "Sensitive metadata has been completely removed. The clean image is now safe in your Gallery under the \"Reducer\" folder.",
+  "done": "Done",
+  "freeTrialLeft": "{count} Free Trial Left",
+  "@freeTrialLeft": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "privacyFirst": "Privacy First",
+  "privacyFirstDescription": "Remove GPS coordinates, camera info, and other sensitive metadata from your photos before sharing.",
+  "cleaning": "Cleaning...",
+  "cleanAndSave": "Clean & Save",
+  "tapToSelectImage": "Tap to select image",
+  "poweredByAi": "POWERED BY AI",
+  "about": "About",
+  "privacyPolicy": "Privacy Policy",
+  "version": "Version",
+  "madeWithHeart": "Made with ♥ by Tarur Infotech",
+  "lastUpdated": "Last updated: April 05, 2026",
+  "privacySection1Title": "1. Data Processing",
+  "privacySection1Content": "All image processing occurs locally on your device. We do not upload, store, or transmit your photos to any external servers. Your images remain completely private and secure on your device.",
+  "privacySection2Title": "2. Information Collection",
+  "privacySection2Content": "We collect minimal anonymous usage data to improve the app experience. This includes crash reports and basic analytics. No personally identifiable information is collected without your explicit consent.",
+  "privacySectionTitle3": "3. Third-Party Services",
+  "privacySectionContent3": "We use Google AdMob for displaying advertisements (in the free version) and RevenueCat for managing subscriptions. These services may collect information as outlined in their respective privacy policies.",
+  "privacySectionTitle4": "4. Device Permissions",
+  "privacySectionContent4": "We require photo/storage access solely for the purpose of selecting images to edit and saving the processed results. We do not access any other files on your device.",
+  "privacySectionTitle5": "5. Contact Us",
+  "privacySectionContent5": "If you have any questions about this Privacy Policy, please contact us at tarurinfotech@gmail.com.",
+  "shareAppText": "Check out Reducer - The ultimate image compression and processing tool! Download here: {url}",
+  "@shareAppText": {
+    "placeholders": {
+      "url": {
+        "type": "String"
+      }
+    }
+  },
+  "@savedImages": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "signInBenefit": "Sign in to unlock cross-device sync,\nPro features, and your history.",
+  "fullAccessUnlocked": "Full access unlocked",
+  "logoutConfirm": "Ready to leave? Your progress is safely synced to the cloud.",
+  "email": "Email",
+  "deleteAccount": "Delete Account",
+  "deleteAccountConfirmation": "Are you sure you want to permanently delete your account? This action cannot be undone.",
+  "delete": "Delete",
+  "buy": "BUY",
+  "popular": "Popular",
+  "successPurchase": "Welcome to Premium! 🎉",
+  "successRestore": "Restored Successfully!"
+}

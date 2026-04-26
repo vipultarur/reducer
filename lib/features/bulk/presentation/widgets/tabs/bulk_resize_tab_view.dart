@@ -4,6 +4,8 @@ import 'package:reducer/core/models/image_settings.dart';
 import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class BulkResizeTabView extends StatelessWidget {
   final ImageSettings settings;
@@ -17,6 +19,7 @@ class BulkResizeTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
@@ -24,30 +27,30 @@ class BulkResizeTabView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-           _buildInfoNote(context, 'Percentage scaling is recommended for bulk batches.'),
+           _buildInfoNote(context, l10n.bulkResizeNote),
           const SizedBox(height: AppSpacing.lg),
           
           _buildCard(
             context,
-            title: 'SCALE % (RECOMMENDED)',
+            title: l10n.scalePercentRecommended.toUpperCase(),
             child: Column(
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Smaller', style: AppTextStyles.labelSmall(context)),
+                    Text(l10n.smaller, style: AppTextStyles.labelSmall(context)),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                       ),
                       child: Text(
                         '${settings.scalePercent.toInt()}%',
-                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                       ),
                     ),
-                    Text('Original', style: AppTextStyles.labelSmall(context)),
+                    Text(l10n.original, style: AppTextStyles.labelSmall(context)),
                   ],
                 ),
                 Slider(
@@ -69,26 +72,26 @@ class BulkResizeTabView extends StatelessWidget {
           
           _buildCard(
             context,
-            title: 'FIXED DIMENSIONS (EXPERT)',
+            title: l10n.fixedDimensionsExpert.toUpperCase(),
             child: Column(
               children: [
                 Row(
                   children: [
                     Expanded(
                       child: _buildDimensionField(
-                        'Width',
+                        l10n.width,
                         settings.width?.toInt().toString() ?? '',
                         (v) => onSettingsChanged(settings.copyWith(width: double.tryParse(v))),
                         isDark,
                       ),
                     ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('×', style: TextStyle(fontSize: 20, color: Colors.grey)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                      child: Text('×', style: TextStyle(fontSize: 20.sp, color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant)),
                     ),
                     Expanded(
                       child: _buildDimensionField(
-                        'Height',
+                        l10n.height,
                         settings.height?.toInt().toString() ?? '',
                         (v) => onSettingsChanged(settings.copyWith(height: double.tryParse(v))),
                         isDark,
@@ -96,12 +99,12 @@ class BulkResizeTabView extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: AppSpacing.lg),
                 Row(
                   children: [
-                    const Icon(Iconsax.link, size: 16, color: Colors.grey),
-                    const SizedBox(width: 8),
-                    const Text('Lock Aspect Ratio', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                    Icon(Iconsax.link, size: AppSpacing.iconSm, color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(l10n.lockAspectRatio, style: TextStyle(color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant, fontSize: 13.sp)),
                     const Spacer(),
                     Switch.adaptive(
                       value: settings.lockAspect,
@@ -119,21 +122,22 @@ class BulkResizeTabView extends StatelessWidget {
   }
 
   Widget _buildInfoNote(BuildContext context, String text) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
      return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, size: 16, color: AppColors.primary),
-          const SizedBox(width: 8),
+          const Icon(Icons.info_outline, size: AppSpacing.iconSm, color: AppColors.primary),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               text,
-              style: AppTextStyles.labelSmall(context).copyWith(color: AppColors.primary),
+              style: AppTextStyles.labelSmall(context).copyWith(color: isDark ? AppColors.onDarkSurface : AppColors.primary),
             ),
           ),
         ],
@@ -145,16 +149,17 @@ class BulkResizeTabView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 6),
+        Text(label, style: TextStyle(fontSize: 10.sp, color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant, fontWeight: FontWeight.bold)),
+        const SizedBox(height: AppSpacing.xs),
         TextField(
           controller: TextEditingController(text: value)..selection = TextSelection.collapsed(offset: value.length),
           keyboardType: TextInputType.number,
+          style: TextStyle(color: isDark ? AppColors.onDarkSurface : AppColors.onLightSurface),
           decoration: InputDecoration(
             isDense: true,
             filled: true,
-            fillColor: isDark ? Colors.black26 : Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            fillColor: isDark ? AppColors.darkSurfaceVariant : Colors.white,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd), borderSide: isDark ? const BorderSide(color: AppColors.darkBorder) : const BorderSide(color: AppColors.lightBorder)),
           ),
           onChanged: onChanged,
         ),
@@ -172,16 +177,16 @@ class BulkResizeTabView extends StatelessWidget {
           style: AppTextStyles.labelSmall(context).copyWith(
             letterSpacing: 1.2,
             fontWeight: FontWeight.w800,
-            color: isDark ? Colors.white60 : Colors.black54,
+            color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF212121) : Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, width: 1),
           ),
           child: child,
         ),
@@ -189,3 +194,4 @@ class BulkResizeTabView extends StatelessWidget {
     );
   }
 }
+

@@ -4,8 +4,10 @@ import 'package:iconsax/iconsax.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
+import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final StatefulNavigationShell navigationShell;
@@ -23,28 +25,26 @@ class CommonAppBar extends ConsumerWidget implements PreferredSizeWidget {
     final index = navigationShell.currentIndex;
     final isPro = ref.watch(premiumControllerProvider.select((s) => s.isPro));
 
-    String title = 'Reducer';
+    final l10n = AppLocalizations.of(context)!;
+    String title = l10n.appTitle;
     List<Widget> actions = [];
 
     switch (index) {
       case 0:
-        title = 'Reducer';
+        title = l10n.appTitle;
         actions = [
           if (!isPro)
-            _PremiumBadge(onTap: () => navigationShell.goBranch(3)),
+            _PremiumBadge(onTap: () => context.push('/premium')),
         ];
         break;
       case 1:
-        title = 'Editor';
+        title = l10n.singleEditor;
         break;
       case 2:
-        title = 'Edit History';
+        title = l10n.viewHistory;
         break;
       case 3:
-        title = 'Premium';
-        break;
-      case 4:
-        title = 'My Profile';
+        title = l10n.profile;
         break;
     }
 
@@ -75,22 +75,14 @@ class _PremiumBadge extends StatelessWidget {
         padding: const EdgeInsets.only(right: AppSpacing.sm),
         child: GestureDetector(
           onTap: onTap,
-          child: Container(
+          child:  Container(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 6),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFFFFD700), Color(0xFFFFA500)], // Gold to Orange
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
               ),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.orange.withValues(alpha: 0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.premium.withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -98,33 +90,30 @@ class _PremiumBadge extends StatelessWidget {
                 const Icon(Iconsax.crown, size: 14, color: Colors.white),
                 const SizedBox(width: 4),
                 Text(
-                  'PRO',
-                  style: AppTextStyles.labelMedium(context).copyWith(
-                    fontWeight: FontWeight.w900,
+                  AppLocalizations.of(context)!.proBadge,
+                  style: AppTextStyles.labelSmall(context).copyWith(
                     color: Colors.white,
-                    letterSpacing: 0.5,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],
             ),
-          ),
-        )
-        .animate(onPlay: (controller) => controller.repeat())
-        .shimmer(delay: 2.seconds, duration: 1500.ms, color: Colors.white.withValues(alpha: 0.5))
-        .scale(
-          begin: const Offset(1, 1),
-          end: const Offset(1.05, 1.05),
-          duration: 1.seconds,
-          curve: Curves.easeInOut,
-        )
-        .then()
-        .scale(
-          begin: const Offset(1.05, 1.05),
-          end: const Offset(1, 1),
-          duration: 1.seconds,
-          curve: Curves.easeInOut,
+          ).animate(onPlay: (controller) => controller.repeat())
+           .shimmer(delay: 2.seconds, duration: 1500.ms, color: Colors.white.withValues(alpha: 0.5))
+           .scale(
+             begin: const Offset(1, 1),
+             end: const Offset(1.05, 1.05),
+             duration: 1.seconds,
+             curve: Curves.easeInOut,
+           ).then().scale(
+             begin: const Offset(1.05, 1.05),
+             end: const Offset(1, 1),
+             duration: 1.seconds,
+             curve: Curves.easeInOut,
+           ),
         ),
       ),
     );
   }
 }
+

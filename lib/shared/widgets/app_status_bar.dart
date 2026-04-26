@@ -54,14 +54,14 @@ class AppStatusBar extends StatelessWidget {
                 title,
                 style: AppTextStyles.labelMedium(context).copyWith(
                   fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
+                  color: isDark ? AppColors.onDarkSurface : AppColors.onLightSurface,
                 ),
               ),
               if (subtitle != null)
                 Text(
                   subtitle!,
                   style: AppTextStyles.labelSmall(context).copyWith(
-                    color: (isDark ? Colors.white70 : Colors.black54),
+                    color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
                   ),
                 ),
             ],
@@ -113,3 +113,4 @@ class AppStatusBar extends StatelessWidget {
     );
   }
 }
+

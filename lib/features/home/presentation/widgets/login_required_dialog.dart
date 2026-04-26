@@ -4,6 +4,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 class LoginRequiredDialog extends StatelessWidget {
   const LoginRequiredDialog({super.key});
@@ -42,20 +43,20 @@ class LoginRequiredDialog extends StatelessWidget {
             
             // Title
             Text(
-              'Sign in required',
+              AppLocalizations.of(context)!.signInRequired,
               textAlign: TextAlign.center,
               style: AppTextStyles.headlineSmall(context).copyWith(
-                color: isDark ? Colors.white : AppColors.primaryDark,
+                color: isDark ? AppColors.onDarkSurface : AppColors.primaryDark,
               ),
             ),
             const SizedBox(height: AppSpacing.md),
             
             // Description
             Text(
-              'To access pro features and sync your edits across devices, please sign in to your account.',
+              AppLocalizations.of(context)!.signInRequiredDescription,
               textAlign: TextAlign.center,
               style: AppTextStyles.bodyMedium(context).copyWith(
-                color: isDark ? Colors.white70 : Colors.black54,
+                color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
               ),
             ),
             const SizedBox(height: AppSpacing.xl2),
@@ -72,7 +73,7 @@ class LoginRequiredDialog extends StatelessWidget {
                   backgroundColor: AppColors.primary,
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
                 ),
-                child: const Text('Sign In Now'),
+                child: Text(AppLocalizations.of(context)!.signInNow),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
@@ -89,7 +90,7 @@ class LoginRequiredDialog extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
                   side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
                 ),
-                child: const Text('Create Account'),
+                child: Text(AppLocalizations.of(context)!.createAccount),
               ),
             ),
             
@@ -97,9 +98,9 @@ class LoginRequiredDialog extends StatelessWidget {
             TextButton(
               onPressed: () => Navigator.pop(context),
               child: Text(
-                'Maybe later',
+                AppLocalizations.of(context)!.maybeLater,
                 style: TextStyle(
-                  color: isDark ? Colors.white38 : Colors.black38,
+                  color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
                 ),
               ),
             ),
@@ -109,3 +110,4 @@ class LoginRequiredDialog extends StatelessWidget {
     );
   }
 }
+

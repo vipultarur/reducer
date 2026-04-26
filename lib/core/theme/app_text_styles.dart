@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 /// Centralized typography system using Google Fonts "Inter"
 class AppTextStyles {
   AppTextStyles._();
@@ -13,7 +13,7 @@ class AppTextStyles {
     Color? color,
   }) =>
       GoogleFonts.inter(
-        fontSize: size,
+        fontSize: size.sp,
         fontWeight: weight,
         height: height,
         letterSpacing: letterSpacing,
@@ -53,3 +53,4 @@ class AppTextStyles {
   static TextStyle chipLabel(BuildContext context) => _inter(12, weight: FontWeight.w500);
   static TextStyle badgeLabel(BuildContext context) => _inter(10, weight: FontWeight.w700, letterSpacing: 0.5);
 }
+

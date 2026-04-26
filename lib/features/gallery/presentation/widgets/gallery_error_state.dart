@@ -3,6 +3,7 @@ import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 class GalleryErrorState extends StatelessWidget {
   final Object error;
@@ -25,7 +26,7 @@ class GalleryErrorState extends StatelessWidget {
             const Icon(Iconsax.warning_2, color: AppColors.error, size: 36),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Unable to load history right now',
+              AppLocalizations.of(context)!.historyLoadError,
               style: AppTextStyles.titleMedium(context),
               textAlign: TextAlign.center,
             ),
@@ -38,7 +39,7 @@ class GalleryErrorState extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             FilledButton(
               onPressed: onRetry,
-              child: const Text('Retry'),
+              child: Text(AppLocalizations.of(context)!.retry),
             ),
           ],
         ),
@@ -46,3 +47,4 @@ class GalleryErrorState extends StatelessWidget {
     );
   }
 }
+

@@ -7,7 +7,7 @@ import 'app_spacing.dart';
 class AppTheme {
   AppTheme._();
 
-  static const String _fontFamily = 'Inter';
+  static final String? _fontFamily = GoogleFonts.inter().fontFamily;
 
   // ─────────────────────────────────────────────────────────────────────────────
   // LIGHT THEME
@@ -57,7 +57,7 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        titleTextStyle: const TextStyle(
+        titleTextStyle: TextStyle(
           fontFamily: _fontFamily,
           fontSize: 20,
           fontWeight: FontWeight.w700,
@@ -88,7 +88,7 @@ class AppTheme {
             borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: const TextStyle(fontFamily: _fontFamily, fontSize: 15, fontWeight: FontWeight.w600),
+          textStyle: TextStyle(fontFamily: _fontFamily, fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -100,7 +100,7 @@ class AppTheme {
             borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: const TextStyle(fontFamily: _fontFamily, fontSize: 15, fontWeight: FontWeight.w600),
+          textStyle: TextStyle(fontFamily: _fontFamily, fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -108,7 +108,7 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: AppColors.primary,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusMd)),
-          textStyle: const TextStyle(fontFamily: _fontFamily, fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: TextStyle(fontFamily: _fontFamily, fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -119,8 +119,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: BorderSide.none,
         ),
-        labelStyle: const TextStyle(fontFamily: _fontFamily, color: AppColors.onLightSurfaceVariant, fontSize: 14),
-        hintStyle: const TextStyle(fontFamily: _fontFamily, color: AppColors.onLightSurfaceVariant, fontSize: 14),
+        labelStyle: TextStyle(fontFamily: _fontFamily, color: AppColors.onLightSurfaceVariant, fontSize: 14),
+        hintStyle: TextStyle(fontFamily: _fontFamily, color: AppColors.onLightSurfaceVariant, fontSize: 14),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
 
@@ -130,8 +130,8 @@ class AppTheme {
         indicator: const BoxDecoration(
           border: Border(bottom: BorderSide(color: AppColors.primary, width: 2.5)),
         ),
-        labelStyle: const TextStyle(fontFamily: _fontFamily, fontSize: 13, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(fontFamily: _fontFamily, fontSize: 13, fontWeight: FontWeight.w500),
+        labelStyle: TextStyle(fontFamily: _fontFamily, fontSize: 13, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: TextStyle(fontFamily: _fontFamily, fontSize: 13, fontWeight: FontWeight.w500),
         indicatorSize: TabBarIndicatorSize.label,
         dividerColor: AppColors.lightBorder,
       ),
@@ -186,7 +186,7 @@ class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         systemOverlayStyle: SystemUiOverlayStyle.light,
-        titleTextStyle: const TextStyle(
+        titleTextStyle: TextStyle(
           fontFamily: _fontFamily,
           fontSize: 20,
           fontWeight: FontWeight.w700,
@@ -215,7 +215,7 @@ class AppTheme {
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppSpacing.radiusLg)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: const TextStyle(fontFamily: _fontFamily, fontSize: 15, fontWeight: FontWeight.w600),
+          textStyle: TextStyle(fontFamily: _fontFamily, fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
 
@@ -226,8 +226,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: BorderSide.none,
         ),
-        labelStyle: const TextStyle(fontFamily: _fontFamily, color: AppColors.onDarkSurfaceVariant, fontSize: 14),
-        hintStyle: const TextStyle(fontFamily: _fontFamily, color: AppColors.onDarkSurfaceVariant, fontSize: 14),
+        labelStyle: TextStyle(fontFamily: _fontFamily, color: AppColors.onDarkSurfaceVariant, fontSize: 14),
+        hintStyle: TextStyle(fontFamily: _fontFamily, color: AppColors.onDarkSurfaceVariant, fontSize: 14),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
 
@@ -237,8 +237,8 @@ class AppTheme {
         indicator: const BoxDecoration(
           border: Border(bottom: BorderSide(color: AppColors.primaryLight, width: 2.5)),
         ),
-        labelStyle: const TextStyle(fontFamily: _fontFamily, fontSize: 13, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(fontFamily: _fontFamily, fontSize: 13, fontWeight: FontWeight.w500),
+        labelStyle: TextStyle(fontFamily: _fontFamily, fontSize: 13, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: TextStyle(fontFamily: _fontFamily, fontSize: 13, fontWeight: FontWeight.w500),
         indicatorSize: TabBarIndicatorSize.label,
         dividerColor: AppColors.darkBorder,
       ),
@@ -274,10 +274,11 @@ class AppTheme {
     );
   }
 
-  static BoxDecoration primaryGradientDecoration({double radius = AppSpacing.radiusLg}) {
+  static BoxDecoration primaryGradientDecoration({double? radius}) {
     return BoxDecoration(
       gradient: const LinearGradient(colors: AppColors.primaryGradient, begin: Alignment.topLeft, end: Alignment.bottomRight),
-      borderRadius: BorderRadius.circular(radius),
+      borderRadius: BorderRadius.circular(radius ?? AppSpacing.radiusLg),
     );
   }
 }
+

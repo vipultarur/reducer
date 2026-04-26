@@ -69,8 +69,8 @@ class AuthController extends StateNotifier<bool> {
       Future.delayed(const Duration(milliseconds: 500), () {
         NotificationService().showNotification(
           id: 1,
-          title: 'Welcome to Reducer! 🚀',
-          body: 'Start reducing your images and videos with ease.',
+          title: 'Congratulations! 🎉',
+          body: 'Registration successful! Start optimizing your gallery now.',
         );
       });
     } on FirebaseAuthException catch (e) {
@@ -142,8 +142,8 @@ class AuthController extends StateNotifier<bool> {
         Future.delayed(const Duration(milliseconds: 500), () {
           NotificationService().showNotification(
             id: 1,
-            title: 'Welcome to Reducer! 🚀',
-            body: 'Start reducing your images and videos with ease.',
+            title: 'Congratulations! 🎉',
+            body: 'Registration successful via Google! Start optimizing your gallery now.',
           );
         });
       }
@@ -274,4 +274,24 @@ class AuthController extends StateNotifier<bool> {
       state = false;
     }
   }
+
+  /// Delete account logic with compliance handling
+  Future<void> deleteAccount() async {
+    state = true;
+    try {
+      await _ref.read(authServiceProvider).deleteAccount();
+      // On success, clear pro status locally
+      await _ref.read(premiumControllerProvider.notifier).clearProStatus();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw 'For security, please logout and log back in before deleting your account.';
+      }
+      throw _handleAuthError(e);
+    } catch (e) {
+      throw 'Account deletion failed: $e';
+    } finally {
+      state = false;
+    }
+  }
 }
+

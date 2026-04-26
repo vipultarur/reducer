@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 class GalleryEmptyState extends StatelessWidget {
   const GalleryEmptyState({super.key});
@@ -17,7 +18,7 @@ class GalleryEmptyState extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(AppSpacing.xl),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.primaryContainer,
               shape: BoxShape.circle,
             ),
@@ -25,12 +26,12 @@ class GalleryEmptyState extends StatelessWidget {
           ).animate().scale(delay: 200.ms, duration: 400.ms, curve: Curves.easeOutBack),
           const SizedBox(height: AppSpacing.xl2),
           Text(
-            'No past edits found',
+            AppLocalizations.of(context)!.noPastEdits,
             style: AppTextStyles.titleLarge(context),
           ).animate().fadeIn(delay: 400.ms),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Process and export images\nto see them here',
+            AppLocalizations.of(context)!.galleryEmptyDescription,
             style: AppTextStyles.bodyMedium(context).copyWith(color: Colors.grey),
             textAlign: TextAlign.center,
           ).animate().fadeIn(delay: 600.ms),
@@ -38,10 +39,11 @@ class GalleryEmptyState extends StatelessWidget {
           FilledButton.icon(
             onPressed: () => context.pop(),
             icon: const Icon(Iconsax.add),
-            label: const Text('Start New Edit'),
+            label: Text(AppLocalizations.of(context)!.startNewEdit),
           ).animate().fadeIn(delay: 800.ms),
         ],
       ),
     );
   }
 }
+

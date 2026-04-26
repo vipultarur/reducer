@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:reducer/core/theme/app_colors.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/features/gallery/presentation/controllers/history_controller.dart';
 import 'package:reducer/features/gallery/data/models/history_item.dart';
@@ -12,7 +13,7 @@ import 'package:reducer/features/gallery/presentation/widgets/history_card.dart'
 import 'package:reducer/features/gallery/presentation/widgets/gallery_empty_state.dart';
 import 'package:reducer/features/gallery/presentation/widgets/gallery_error_state.dart';
 import 'package:reducer/features/gallery/presentation/widgets/clear_history_dialog.dart';
-
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class GalleryScreen extends ConsumerStatefulWidget {
   const GalleryScreen({super.key});
@@ -41,6 +42,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final historyAsync = ref.watch(historyControllerProvider);
     final items = historyAsync.valueOrNull?.items ?? const <HistoryItem>[];
 
@@ -50,7 +52,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
           const BannerAdWidget(),
           Expanded(
             child: historyAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+               loading: () => Center(child: CircularProgressIndicator(strokeWidth: 2.r)),
               error: (error, stackTrace) => GalleryErrorState(
                 error: error,
                 onRetry: () async {
@@ -78,14 +80,14 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                               BorderRadius.circular(AppSpacing.radiusLg),
                         ),
                         child:
-                            const Icon(Iconsax.trash, color: Colors.white),
+                            Icon(Iconsax.trash, color: Colors.white, size: 24.r),
                       ),
                       onDismissed: (_) async {
                         await ref.read(historyControllerProvider.notifier).removeItem(item.id);
                         if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: const Text('Item removed from history'),
+                            content: Text(l10n.itemRemoved),
                             behavior: SnackBarBehavior.floating,
                             backgroundColor: AppColors.darkSurface,
                           ),
@@ -117,9 +119,10 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
                   },
                 ),
               ),
-              child: const Icon(Iconsax.trash, color: Colors.white),
+              child: Icon(Iconsax.trash, color: Colors.white, size: 20.r),
             )
           : null,
     );
   }
 }
+

@@ -43,25 +43,40 @@ class NotificationService {
       debugPrint('[NotificationService] ERROR during initialization: $e');
     }
 
-    // Create Android Notification Channel for high importance
+    // Create Android Notification Channels for reliability
     try {
-      const AndroidNotificationChannel channel = AndroidNotificationChannel(
-        'high_importance_channel', // id
-        'High Importance Notifications', // title
-        description: 'This channel is used for important notifications.',
+      final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+          _notificationsPlugin.resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>();
+
+      // 1. General High Importance Channel
+      const AndroidNotificationChannel highChannel = AndroidNotificationChannel(
+        'high_importance_channel',
+        'High Importance Notifications',
+        description: 'Used for important account and safety updates.',
         importance: Importance.max,
         playSound: true,
         enableVibration: true,
         showBadge: true,
       );
 
-      await _notificationsPlugin
-          .resolvePlatformSpecificImplementation<
-              AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
-      debugPrint('[NotificationService] Android High Importance Channel ensured');
+      // 2. Image Processing Channel
+      const AndroidNotificationChannel processingChannel = AndroidNotificationChannel(
+        'processing_channel',
+        'Image Processing',
+        description: 'Notifications for image compression and optimization results.',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+        showBadge: true,
+      );
+
+      await androidImplementation?.createNotificationChannel(highChannel);
+      await androidImplementation?.createNotificationChannel(processingChannel);
+      
+      debugPrint('[NotificationService] Android Notification Channels ensured');
     } catch (e) {
-      debugPrint('[NotificationService] ERROR creating channel: $e');
+      debugPrint('[NotificationService] ERROR creating channels: $e');
     }
   }
 
@@ -120,6 +135,56 @@ class NotificationService {
     }
   }
 
+  Future<void> showImageNotification({
+    required int id,
+    required String title,
+    required String body,
+    required String imagePath,
+    String? payload,
+  }) async {
+    debugPrint('[NotificationService] Preparing to show image notification: "$title"');
+
+    final BigPictureStyleInformation bigPictureStyleInformation = BigPictureStyleInformation(
+      FilePathAndroidBitmap(imagePath),
+      largeIcon: FilePathAndroidBitmap(imagePath),
+      contentTitle: title,
+      summaryText: body,
+    );
+
+    final AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'processing_channel',
+      'Image Processing',
+      channelDescription: 'Notifications for image compression results',
+      styleInformation: bigPictureStyleInformation,
+      importance: Importance.max,
+      priority: Priority.max,
+      ticker: 'Image processing complete',
+      category: AndroidNotificationCategory.status,
+      fullScreenIntent: true,
+    );
+
+    final NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: const DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );
+
+    try {
+      await _notificationsPlugin.show(
+        id,
+        title,
+        body,
+        platformDetails,
+        payload: payload,
+      );
+    } catch (e) {
+      debugPrint('[NotificationService] ERROR showing image notification: $e');
+    }
+  }
+
   Future<void> requestPermissions() async {
     debugPrint('[NotificationService] Requesting permissions...');
     try {
@@ -145,3 +210,4 @@ class NotificationService {
     }
   }
 }
+

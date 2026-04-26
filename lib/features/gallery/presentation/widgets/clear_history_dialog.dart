@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:reducer/core/theme/app_colors.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 class ClearHistoryDialog extends StatelessWidget {
   final VoidCallback onClear;
@@ -11,13 +12,14 @@ class ClearHistoryDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
-      title: const Text('Clear History?'),
-      content: const Text('This will remove all past edits from history. This action cannot be undone.'),
+      title: Text(l10n.clearHistoryTitle),
+      content: Text(l10n.clearHistoryContent),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: Text(l10n.cancel),
         ),
         FilledButton(
           onPressed: () {
@@ -25,9 +27,10 @@ class ClearHistoryDialog extends StatelessWidget {
             Navigator.pop(context);
           },
           style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-          child: const Text('Clear'),
+          child: Text(l10n.clear),
         ),
       ],
     );
   }
 }
+

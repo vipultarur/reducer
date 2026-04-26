@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:iconsax/iconsax.dart';
@@ -7,6 +8,7 @@ import 'package:gal/gal.dart';
 import 'package:archive/archive_io.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
@@ -26,6 +28,10 @@ import 'package:reducer/features/bulk/presentation/widgets/tabs/bulk_compress_ta
 import 'package:reducer/features/bulk/presentation/widgets/tabs/bulk_resize_tab_view.dart';
 import 'package:reducer/features/bulk/presentation/widgets/tabs/bulk_format_tab_view.dart';
 import 'package:reducer/features/bulk/presentation/widgets/tabs/bulk_export_tab_view.dart';
+import 'package:reducer/core/services/analytics_service.dart';
+import 'package:reducer/features/settings/presentation/controllers/review_controller.dart';
+import 'package:reducer/l10n/app_localizations.dart';
+import 'package:reducer/core/utils/file_utils.dart';
 import 'package:path/path.dart' as p;
 
 class BulkImageScreen extends ConsumerStatefulWidget {
@@ -61,11 +67,11 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen>
     if (pickedFiles.isNotEmpty && mounted) {
       final isPro = ref.read(premiumControllerProvider).isPro;
       final selected = isPro ? pickedFiles : pickedFiles.take(50).toList();
-      ref.read(bulkImageControllerProvider.notifier).selectImages(selected);
+      unawaited(ref.read(bulkImageControllerProvider.notifier).selectImages(selected));
       
       if (!isPro && pickedFiles.length > 50) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Free users: limit 50 images. Upgrade for more.')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.freeUserLimit)),
         );
       }
     }
@@ -73,7 +79,8 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen>
 
   Future<void> _handleProcess() async {
     final isPro = ref.read(premiumControllerProvider).isPro;
-    await ref.read(bulkImageControllerProvider.notifier).processAll(isPro);
+    final l10n = AppLocalizations.of(context)!;
+    await ref.read(bulkImageControllerProvider.notifier).processAll(isPro, l10n);
     
     final state = ref.read(bulkImageControllerProvider);
     final successful = state.processedResults.values.where((f) => f != null).cast<File>().toList();
@@ -88,13 +95,15 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (state.selectedImages.isEmpty) {
-      return _buildEmptyState();
+      return _buildEmptyState(context);
     }
 
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : Colors.white,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
-        title: const Text('Bulk Studio'),
+        title: Text(l10n.bulkStudio),
         centerTitle: true,
         actions: [
           IconButton(
@@ -111,36 +120,99 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen>
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
             child: Container(
-              height: 52,
+              height: 52.h,
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF252525) : Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(26),
+                color: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                borderRadius: BorderRadius.circular(26.r),
               ),
               child: TabBar(
                 controller: _tabController,
                 indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(22),
-                  color: isDark ? const Color(0xFF323232) : Colors.white,
+                  borderRadius: BorderRadius.circular(22.r),
+                  color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                   border: Border.all(
                     color: isDark ? Colors.white12 : Colors.black.withValues(alpha: 0.05),
                   ),
                 ),
                 indicatorSize: TabBarIndicatorSize.tab,
                 labelColor: isDark ? Colors.white : AppColors.primary,
-                unselectedLabelColor: isDark ? Colors.white38 : Colors.grey,
+                unselectedLabelColor: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
                 dividerColor: Colors.transparent,
                 labelPadding: EdgeInsets.zero,
                 labelStyle: AppTextStyles.labelMedium(context).copyWith(fontWeight: FontWeight.bold),
-                tabs: const [
-                  Tab(text: 'Compress'),
-                  Tab(text: 'Resize'),
-                  Tab(text: 'Format'),
-                  Tab(text: 'Export'),
+                tabs: [
+                  Tab(text: l10n.compress),
+                  Tab(text: l10n.resize),
+                  Tab(text: l10n.format),
+                  Tab(text: l10n.export),
                 ],
               ),
             ),
           ),
+
+          if (state.totalCompressedSize > 0) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                      child: const Icon(Iconsax.chart_21, size: 16, color: Colors.white),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            l10n.batchOptimizationComplete,
+                            style: AppTextStyles.labelSmall(context).copyWith(
+                              letterSpacing: 1.1,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              Text(
+                                FileUtils.formatBytes(state.totalOriginalSize),
+                                style: TextStyle(
+                                  decoration: TextDecoration.lineThrough, 
+                                  color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant, 
+                                  fontSize: 13
+                                ),
+                              ),
+                              Icon(Icons.arrow_right_alt, size: 16, color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant),
+                              Text(
+                                FileUtils.formatBytes(state.totalCompressedSize),
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              ),
+                              const Spacer(),
+                               Text(
+                                '${((1 - (state.totalCompressedSize / state.totalOriginalSize)) * 100).toStringAsFixed(1)}% ${l10n.smaller}',
+                                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w900, fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+          ],
 
           Expanded(
             child: TabBarView(
@@ -167,14 +239,56 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen>
               ],
             ),
           ),
+          
+          // Persistent Bottom Process Button
+          if (state.processedResults.isEmpty || state.isProcessing)
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: state.isProcessing ? null : _handleProcess,
+                    icon: state.isProcessing 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Iconsax.flash),
+                    label: Text(
+                      state.isProcessing 
+                        ? l10n.processingProgress((state.progress * 100).toInt()) 
+                        : l10n.startBatchProcessing
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+     final l10n = AppLocalizations.of(context)!;
+     final isDark = Theme.of(context).brightness == Brightness.dark;
      return Scaffold(
-       appBar: AppBar(title: const Text('Bulk Studio')),
+       appBar: AppBar(title: Text(l10n.bulkStudio)),
        body: SafeArea(
          child: SingleChildScrollView(
            padding: const EdgeInsets.all(AppSpacing.xl),
@@ -186,18 +300,22 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen>
                const Icon(Iconsax.grid_5, size: 64, color: AppColors.primary),
                const SizedBox(height: 16),
                Text(
-                 'Batch Processing',
+                 l10n.batchProcessing,
                  style: AppTextStyles.titleLarge(context).copyWith(fontWeight: FontWeight.bold),
                ),
                const SizedBox(height: 8),
-               const Text('Optimize hundreds of images in one go', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+               Text(
+                 l10n.batchDescription, 
+                 textAlign: TextAlign.center, 
+                 style: TextStyle(color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant)
+               ),
                const SizedBox(height: 32),
                SizedBox(
                  width: double.infinity,
                  child: ElevatedButton.icon(
                    onPressed: () => AdManager().showInterstitialAd(onComplete: _pickMultipleImages),
                    icon: const Icon(Iconsax.add),
-                   label: const Text('Select Multiple Images'),
+                   label: Text(l10n.selectMultipleImages),
                    style: ElevatedButton.styleFrom(
                      padding: const EdgeInsets.symmetric(vertical: 16),
                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -252,6 +370,15 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen>
       );
 
       await ref.read(historyControllerProvider.notifier).addItem(historyItem);
+
+      // PRODUCTION: Track analytics and milestones
+      unawaited(ref.read(analyticsServiceProvider).logCompressionSuccess(
+            type: 'bulk',
+            originalSize: originalSize,
+            compressedSize: processedSize,
+            imageCount: results.length,
+          ));
+      unawaited(ref.read(reviewControllerProvider).recordSuccessfulSave());
     } catch (e) {
       debugPrint('Error saving bulk history: $e');
     }
@@ -265,13 +392,13 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen>
       await Future.wait(successful.map((f) => Gal.putImage(f.path, album: 'Reducer')));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✓ Saved ${successful.length} images!'), backgroundColor: Colors.green),
+          SnackBar(content: Text(AppLocalizations.of(context)!.savedXImages(successful.length)), backgroundColor: AppColors.success),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(AppLocalizations.of(context)!.failedToSave(e.toString())), backgroundColor: AppColors.error),
         );
       }
     }
@@ -293,20 +420,23 @@ class _BulkImageScreenState extends ConsumerState<BulkImageScreen>
       final zipFile = File('${tempDir.path}/bulk_${DateTime.now().millisecondsSinceEpoch}.zip');
       await zipFile.writeAsBytes(zipBytes);
 
+      if (!mounted) return;
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(zipFile.path)],
-          subject: 'Processed images',
+          subject: AppLocalizations.of(context)!.processedImages,
         ),
       );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ZIP error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text(AppLocalizations.of(context)!.zipError(e.toString())), backgroundColor: AppColors.error),
         );
       }
     }
   }
+
+  // Replaced by FileUtils.formatBytes
 }
 
 class _ZipArgs {
@@ -327,3 +457,4 @@ Future<List<int>?> _buildZipIsolate(_ZipArgs args) async {
     return null;
   }
 }
+

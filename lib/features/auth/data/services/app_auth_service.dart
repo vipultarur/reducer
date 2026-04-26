@@ -15,21 +15,33 @@ class AIImageProAuthService {
   User? get currentUser => _auth.currentUser;
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      // 1. Start the interactive sign-in flow (v7.x.x uses instance.authenticate())
+      // 1. Start the interactive sign-in flow
+      // authenticate() returns non-nullable in v7.x.x; throws GoogleSignInException on cancel
       final googleUser = await google_auth.GoogleSignIn.instance.authenticate();
- 
-      // 3. Obtain authorization and authentication tokens
+
+      // 2. Get idToken from authentication (only contains idToken in v7.x.x)
       final auth = googleUser.authentication;
+
+      // 3. Get accessToken via authorization (separate from authentication in v7.x.x)
       final authorized = await googleUser.authorizationClient.authorizeScopes(['email', 'profile']);
- 
-      // 4. Create a new credential
+
+      // 4. Create Firebase credential from Google tokens
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: authorized.accessToken,
         idToken: auth.idToken,
       );
- 
-      // 5. Once signed in, return the UserCredential
+
+      // 5. Sign in to Firebase with the credential
       return await _auth.signInWithCredential(credential);
+    } on google_auth.GoogleSignInException catch (e) {
+      // User cancelled the sign-in flow
+      if (e.code == google_auth.GoogleSignInExceptionCode.canceled ||
+          e.code == google_auth.GoogleSignInExceptionCode.interrupted) {
+        debugPrint('AuthService: Google Sign-In cancelled by user');
+        return null;
+      }
+      debugPrint('AuthService: Google Sign-In exception: ${e.code} - ${e.description}');
+      rethrow;
     } catch (e) {
       debugPrint('AuthService: Google Sign-In error: $e');
       rethrow;
@@ -83,4 +95,36 @@ class AIImageProAuthService {
       rethrow;
     }
   }
+
+  // Delete Account (Mandatory for App Store compliance)
+  Future<void> deleteAccount() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+      
+      // Attempt deletion
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        debugPrint('AuthService: Token stale. Attempting re-authentication...');
+        final providerData = _auth.currentUser?.providerData ?? [];
+        final hasGoogle = providerData.any((p) => p.providerId == 'google.com');
+        
+        if (hasGoogle) {
+           final credential = await signInWithGoogle();
+           if (credential != null) {
+              // Retry deletion after successful re-auth
+              await _auth.currentUser?.delete();
+              return;
+           }
+        }
+      }
+      debugPrint('AuthService: Account deletion error: ${e.code}');
+      rethrow;
+    } catch (e) {
+      debugPrint('AuthService: Unexpected account deletion error: $e');
+      rethrow;
+    }
+  }
 }
+

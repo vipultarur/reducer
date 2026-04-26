@@ -1,33 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:reducer/core/theme/app_colors.dart';
-import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 class PremiumFooterLinks extends ConsumerWidget {
   const PremiumFooterLinks({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant;
+    final l10n = AppLocalizations.of(context)!;
     
-    final linkStyle = AppTextStyles.labelMedium(context).copyWith(color: color);
-    final divider = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      child: Text("|", style: linkStyle),
-    );
+    final linkStyle = AppTextStyles.labelMedium(context).copyWith(color: Colors.black54);
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8.w,
       children: [
-        _Link(text: "Terms of use", onTap: () => _launch('https://tarur.com/terms')),
-        divider,
-        _Link(text: "Privacy Policy", onTap: () => _launch('https://tarur.com/privacy')),
-        divider,
-        _Link(text: "Restore", onTap: () => ref.read(premiumControllerProvider.notifier).restorePurchases()),
+        _Link(text: l10n.termsOfService, onTap: () => _launch('https://tarur.com/terms')),
+        Text("|", style: linkStyle),
+        _Link(text: l10n.privacyPolicy, onTap: () => _launch('https://tarurinfotech.base44.app/privacy/reducer')),
+        Text("|", style: linkStyle),
+        _Link(text: l10n.restorePurchases, onTap: () => ref.read(premiumControllerProvider.notifier).restorePurchases()),
       ],
     );
   }
@@ -50,10 +47,10 @@ class _Link extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Text(text, style: AppTextStyles.labelMedium(context).copyWith(
-        color: Theme.of(context).brightness == Brightness.dark 
-            ? AppColors.onDarkSurfaceVariant 
-            : AppColors.onLightSurfaceVariant,
+        color: Colors.black54,
+        decoration: TextDecoration.underline,
       )),
     );
   }
 }
+

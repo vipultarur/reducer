@@ -4,6 +4,7 @@ import 'package:reducer/core/theme/app_colors.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
 
+
 class FormatTabView extends StatelessWidget {
   final ImageSettings settings;
   final ValueChanged<ImageSettings> onSettingsChanged;
@@ -16,6 +17,7 @@ class FormatTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -47,7 +49,7 @@ class FormatTabView extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Smaller file', style: AppTextStyles.labelSmall(context)),
+                    Text('Smaller file', style: AppTextStyles.labelSmall(context).copyWith(color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant)),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
@@ -56,10 +58,10 @@ class FormatTabView extends StatelessWidget {
                       ),
                       child: Text(
                         '${settings.quality.toInt()}%',
-                        style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                        style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
                       ),
                     ),
-                    Text('Better quality', style: AppTextStyles.labelSmall(context)),
+                    Text('Better quality', style: AppTextStyles.labelSmall(context).copyWith(color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant)),
                   ],
                 ),
                 Slider(
@@ -67,6 +69,7 @@ class FormatTabView extends StatelessWidget {
                   min: 1,
                   max: 100,
                   activeColor: AppColors.primary,
+                  inactiveColor: isDark ? Colors.white10 : AppColors.lightBorder,
                   onChanged: (v) => onSettingsChanged(settings.copyWith(quality: v)),
                 ),
               ],
@@ -102,6 +105,7 @@ class FormatTabView extends StatelessWidget {
                 : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
             width: 1.5,
           ),
+          boxShadow: isSelected && !isDark ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.1), blurRadius: 8)] : null,
         ),
         child: Row(
           children: [
@@ -110,7 +114,7 @@ class FormatTabView extends StatelessWidget {
               width: 12,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBorder : Colors.grey.shade300),
+                color: isSelected ? AppColors.primary : (isDark ? AppColors.darkBorder : AppColors.lightBorder),
               ),
             ),
             const SizedBox(width: 12),
@@ -132,7 +136,7 @@ class FormatTabView extends StatelessWidget {
                   Text(
                     sub,
                     style: AppTextStyles.labelSmall(context).copyWith(
-                      color: isDark ? AppColors.onDarkSurfaceVariant : Colors.grey,
+                      color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
                       fontSize: 10,
                     ),
                   ),
@@ -155,16 +159,16 @@ class FormatTabView extends StatelessWidget {
           style: AppTextStyles.labelSmall(context).copyWith(
             letterSpacing: 1.2,
             fontWeight: FontWeight.w800,
-            color: isDark ? Colors.white60 : Colors.black54,
+            color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         Container(
           padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurfaceVariant : Colors.grey.shade50,
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+            border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder, width: 1),
           ),
           child: child,
         ),
@@ -172,3 +176,4 @@ class FormatTabView extends StatelessWidget {
     );
   }
 }
+

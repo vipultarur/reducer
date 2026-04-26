@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:reducer/core/ads/ad_manager.dart';
@@ -22,6 +23,7 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
 
   @override
   void dispose() {
+    _retryTimer?.cancel();
     if (_claimedAd != null) {
       AdManager().releaseAd(_claimedAd!);
     }
@@ -30,8 +32,11 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
 
   int _retryCount = 0;
   static const int _maxRetries = 15;
+  Timer? _retryTimer;
 
   void _tryClaimAd() {
+    if (!mounted) return;
+    
     final ad = AdManager().getCachedBanner();
     if (ad != null && AdManager().isAdAvailable(ad)) {
       AdManager().claimAd(ad);
@@ -44,7 +49,8 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
       _retryCount++;
       // Exponential backoff: 200ms, 400ms, 800ms... up to several seconds
       final delay = Duration(milliseconds: 200 * _retryCount);
-      Future.delayed(delay, () {
+      _retryTimer?.cancel();
+      _retryTimer = Timer(delay, () {
         if (mounted && _claimedAd == null) _tryClaimAd();
       });
     } else {
@@ -54,7 +60,7 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isPro = ref.watch(premiumControllerProvider).isPro;
+    final isPro = ref.watch(premiumControllerProvider.select((state) => state.isPro));
     if (isPro || AdManager.isPremium) {
       return const SizedBox.shrink();
     }
@@ -71,3 +77,4 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
     );
   }
 }
+

@@ -56,13 +56,13 @@ class FeatureListTile extends StatelessWidget {
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: isPro && !hasAccess 
-                        ? (isDark ? Colors.white10 : Colors.grey.shade100)
+                        ? (isDark ? Colors.white10 : AppColors.lightSurfaceVariant)
                         : AppColors.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   ),
                   child: Icon(
                     icon,
-                    color: isPro && !hasAccess ? Colors.grey : AppColors.primary,
+                    color: isPro && !hasAccess ? (isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant) : AppColors.primary,
                     size: 24,
                   ),
                 ),
@@ -77,11 +77,12 @@ class FeatureListTile extends StatelessWidget {
                             title,
                             style: AppTextStyles.titleMedium(context).copyWith(
                               fontWeight: FontWeight.w700,
+                              color: isDark ? AppColors.onDarkSurface : AppColors.onLightSurface,
                             ),
                           ),
                           if (isPro && !hasAccess) ...[
                             const SizedBox(width: AppSpacing.sm),
-                            const Icon(Iconsax.lock, size: 14, color: Colors.grey),
+                            Icon(Iconsax.lock, size: 14, color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant),
                           ],
                         ],
                       ),
@@ -89,7 +90,7 @@ class FeatureListTile extends StatelessWidget {
                       Text(
                         subtitle,
                         style: AppTextStyles.bodySmall(context).copyWith(
-                          color: isDark ? Colors.white54 : Colors.black54,
+                          color: isDark ? AppColors.onDarkSurfaceVariant : AppColors.onLightSurfaceVariant,
                         ),
                       ),
                     ],
@@ -98,7 +99,7 @@ class FeatureListTile extends StatelessWidget {
                 Icon(
                   Iconsax.arrow_right_3,
                   size: 16,
-                  color: isDark ? Colors.white24 : Colors.black26,
+                  color: isDark ? Colors.white12 : AppColors.lightBorder,
                 ),
               ],
             ),
@@ -108,3 +109,4 @@ class FeatureListTile extends StatelessWidget {
     );
   }
 }
+

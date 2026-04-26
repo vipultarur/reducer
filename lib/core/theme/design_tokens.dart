@@ -23,7 +23,8 @@ class DesignTokens {
   static List<BoxShadow> get neumorphicShadowDark => AppColors.cardShadowDark;
 
   // ── Border Radius ─────────────────────────────────────────────────────────────
-  static const double radiusSmall = AppSpacing.radiusSm;
-  static const double radiusMedium = AppSpacing.radiusLg;
-  static const double radiusLarge = AppSpacing.radiusXl2;
+  static double get radiusSmall => AppSpacing.radiusSm;
+  static double get radiusMedium => AppSpacing.radiusLg;
+  static double get radiusLarge => AppSpacing.radiusXl2;
 }
+

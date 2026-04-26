@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
+import 'package:reducer/core/localization/locale_provider.dart';
+import 'package:reducer/core/routes/app_startup_provider.dart';
 import 'package:reducer/features/auth/presentation/providers/auth_providers.dart';
 import 'package:reducer/features/premium/data/datasources/purchase_datasource.dart';
 import 'package:reducer/features/exif/presentation/providers/exif_providers.dart';
@@ -13,6 +15,12 @@ class RouterNotifier extends ChangeNotifier {
   User? _user;
 
   RouterNotifier(this._ref) {
+    // Listen to startup state and notify GoRouter
+    _ref.listen<bool>(appStartupProvider, (previous, current) => notifyListeners());
+
+    // Listen to onboarding state and notify GoRouter
+    _ref.listen<bool?>(onboardingProvider, (previous, current) => notifyListeners());
+
     // Listen to auth state changes and notify GoRouter
     _ref.listen<AsyncValue<User?>>(authProvider, (previous, next) {
       if (next is AsyncData) {
@@ -24,9 +32,33 @@ class RouterNotifier extends ChangeNotifier {
 
   String? redirect(BuildContext context, GoRouterState state) {
     final path = state.matchedLocation;
+    final isInitialized = _ref.read(appStartupProvider);
+    final onboardingComplete = _ref.read(onboardingProvider) == false;
+    final isPro = _ref.read(premiumControllerProvider).isPro;
+
+    // 1. App initialization guard
+    if (!isInitialized) {
+      return path == '/splash' ? null : '/splash';
+    }
+
+    // 2. Onboarding guard
+    if (!onboardingComplete) {
+      return path == '/language-selection' ? null : '/language-selection';
+    }
+
+    // 3. Prevent users from manually visiting splash or onboarding once complete
+    // EXCEPT if they are coming from settings (indicated by fromSettings query parameter)
+    if (isInitialized && onboardingComplete) {
+      if (path == '/splash') {
+        return isPro ? '/' : '/premium';
+      }
+      if (path == '/language-selection' && state.uri.queryParameters['fromSettings'] != 'true') {
+        return '/';
+      }
+    }
+
     final isAuthRoute = path == '/login' || path == '/register';
     final isLoggedIn = _user != null && !_user!.isAnonymous;
-    final isPro = _ref.read(premiumControllerProvider).isPro;
     final requestedRedirect = state.uri.queryParameters['redirect'];
 
     // Guest mode is allowed across the app, including profile.
@@ -56,9 +88,8 @@ class RouterNotifier extends ChangeNotifier {
   bool _isSafeRedirectTarget(String? target) {
     if (target == null || target.isEmpty) return false;
     if (!target.startsWith('/')) return false;
-    if (target == '/login' || target == '/register' || target == '/splash') {
-      return false;
-    }
+    const forbidden = ['/login', '/register', '/splash', '/language-selection'];
+    if (forbidden.contains(target)) return false;
     return true;
   }
 }
@@ -66,3 +97,4 @@ class RouterNotifier extends ChangeNotifier {
 final routerNotifierProvider = Provider<RouterNotifier>(
   (ref) => RouterNotifier(ref),
 );
+

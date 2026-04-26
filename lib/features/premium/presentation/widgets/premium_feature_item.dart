@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class PremiumFeatureItem extends StatelessWidget {
   final IconData icon;
@@ -14,31 +14,23 @@ class PremiumFeatureItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: EdgeInsets.symmetric(vertical: 8.h),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isDark ? Colors.white.withValues(alpha: 0.05) : Colors.grey.shade100,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              size: 20,
-              color: isDark ? Colors.white70 : Colors.black87,
-            ),
+          Icon(
+            icon,
+            size: 20.r,
+            color: Colors.black87,
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: 16.w),
           Expanded(
             child: Text(
               label,
               style: AppTextStyles.bodyLarge(context).copyWith(
-                fontWeight: FontWeight.w600,
-                color: isDark ? Colors.white : Colors.black,
+                fontWeight: FontWeight.w700,
+                color: Colors.black87,
+                fontSize: 14.sp,
               ),
             ),
           ),
@@ -47,3 +39,4 @@ class PremiumFeatureItem extends StatelessWidget {
     );
   }
 }
+

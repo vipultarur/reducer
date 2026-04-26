@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:reducer/core/theme/app_spacing.dart';
 import 'package:reducer/core/theme/app_text_styles.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 class PremiumPromoCard extends StatelessWidget {
   const PremiumPromoCard({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl),
@@ -81,7 +83,7 @@ class PremiumPromoCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
                     ),
                     child: Text(
-                      'PREMIUM',
+                      l10n.premium.toUpperCase(),
                       style: AppTextStyles.labelSmall(context).copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -91,11 +93,11 @@ class PremiumPromoCard extends StatelessWidget {
                   ),
                 ],
               ),
-              
+          
               const SizedBox(height: AppSpacing.lg),
               
               Text(
-                'Unlock All Pro Features',
+                l10n.unlockAllProFeatures,
                 style: AppTextStyles.headlineSmall(context).copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
@@ -106,7 +108,7 @@ class PremiumPromoCard extends StatelessWidget {
               const SizedBox(height: AppSpacing.xs),
               
               Text(
-                'Bulk processing, no ads, high quality export & more.',
+                l10n.promoSubtitle,
                 style: AppTextStyles.bodyMedium(context).copyWith(
                   color: Colors.white.withValues(alpha: 0.9),
                 ),
@@ -118,7 +120,7 @@ class PremiumPromoCard extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedBtn(
                   onPressed: () => context.push('/premium'),
-                  text: 'Upgrade Now',
+                  text: l10n.upgradeNow,
                 ),
               ),
             ],
@@ -166,3 +168,4 @@ class ElevatedBtn extends StatelessWidget {
     );
   }
 }
+

@@ -73,3 +73,4 @@ class ExifCreditController extends StateNotifier<ExifCreditState> {
     await _secureStorage.write(key: _storageKey, value: '2');
   }
 }
+

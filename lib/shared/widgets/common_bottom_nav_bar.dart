@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:reducer/l10n/app_localizations.dart';
 
 class CommonBottomNavBar extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
@@ -22,33 +23,34 @@ class CommonBottomNavBar extends StatelessWidget {
     return NavigationBar(
       selectedIndex: navigationShell.currentIndex,
       onDestinationSelected: _onTap,
-      destinations: const [
+      destinations: [
         NavigationDestination(
-          icon: Icon(Iconsax.home_1),
-          selectedIcon: Icon(Iconsax.home5),
-          label: 'Home',
+          icon: const Icon(Iconsax.home_1),
+          selectedIcon: const Icon(Iconsax.home5),
+          label: AppLocalizations.of(context)!.homeTitle,
         ),
         NavigationDestination(
-          icon: Icon(Iconsax.edit),
-          selectedIcon: Icon(Iconsax.edit5),
-          label: 'Editor',
+          icon: const Icon(Iconsax.edit),
+          selectedIcon: const Icon(Iconsax.edit5),
+          label: AppLocalizations.of(context)!.singleEditor,
         ),
         NavigationDestination(
-          icon: Icon(Iconsax.gallery),
-          selectedIcon: Icon(Iconsax.gallery5),
-          label: 'History',
+          icon: const Icon(Iconsax.layer),
+          selectedIcon: const Icon(Iconsax.layer5),
+          label: AppLocalizations.of(context)!.bulkStudio,
         ),
         NavigationDestination(
-          icon: Icon(Iconsax.crown),
-          selectedIcon: Icon(Iconsax.crown5),
-          label: 'Premium',
+          icon: const Icon(Iconsax.gallery),
+          selectedIcon: const Icon(Iconsax.gallery5),
+          label: AppLocalizations.of(context)!.history,
         ),
         NavigationDestination(
-          icon: Icon(Iconsax.user),
-          selectedIcon: Icon(Iconsax.user),
-          label: 'Profile',
+          icon: const Icon(Iconsax.user),
+          selectedIcon: const Icon(Iconsax.user),
+          label: AppLocalizations.of(context)!.profile,
         ),
       ],
     );
   }
 }
+

@@ -16,7 +16,7 @@ class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(AppSpacing.lg),
+    this.padding,
     this.margin,
     this.color,
     this.borderRadius,
@@ -30,7 +30,7 @@ class AppCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    Widget card = Container(
+    final Widget card = Container(
       margin: margin,
       decoration: BoxDecoration(
         color: gradient == null ? (color ?? (isDark ? AppColors.darkSurface : AppColors.lightSurface)) : null,
@@ -49,7 +49,7 @@ class AppCard extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             child: Padding(
-              padding: padding ?? EdgeInsets.zero,
+              padding: padding ?? const EdgeInsets.all(AppSpacing.lg),
               child: child,
             ),
           ),
@@ -60,3 +60,4 @@ class AppCard extends StatelessWidget {
     return card;
   }
 }
+

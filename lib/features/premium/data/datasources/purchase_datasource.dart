@@ -30,6 +30,13 @@ final premiumControllerProvider =
       (ref) => PurchaseNotifier(ref),
     );
 
+enum PurchaseStatusType {
+  none,
+  purchaseSuccess,
+  restoreSuccess,
+  error,
+}
+
 // ─── State ──────────────────────────────────────────────────────────────────
 class PurchaseState {
   final bool isPro;
@@ -41,6 +48,8 @@ class PurchaseState {
   /// Informational message shown after a successful purchase or restore.
   final String successMessage;
 
+  final PurchaseStatusType statusType;
+
   PurchaseState({
     this.isPro = false,
     this.isLoading = true,
@@ -48,6 +57,7 @@ class PurchaseState {
     this.selectedPackage,
     this.errorMessage = '',
     this.successMessage = '',
+    this.statusType = PurchaseStatusType.none,
   });
 
   PurchaseState copyWith({
@@ -57,6 +67,7 @@ class PurchaseState {
     PremiumPlan? selectedPackage,
     String? errorMessage,
     String? successMessage,
+    PurchaseStatusType? statusType,
   }) {
     return PurchaseState(
       isPro: isPro ?? this.isPro,
@@ -65,6 +76,7 @@ class PurchaseState {
       selectedPackage: selectedPackage ?? this.selectedPackage,
       errorMessage: errorMessage ?? this.errorMessage,
       successMessage: successMessage ?? this.successMessage,
+      statusType: statusType ?? this.statusType,
     );
   }
 }
@@ -114,7 +126,16 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
   /// Generates a cryptographically secure integrity hash based on user data
   String _generateIntegrityHash(String uid) {
     // 2026 Production Standard: HMAC-SHA256 with a project-specific salt
-    final key = utf8.encode('reducer_secure_salt_v1_2026_premium_hardening');
+    const salt = String.fromEnvironment(
+      'PREMIUM_INTEGRITY_SALT',
+      defaultValue: 'reducer_default_secure_fallback_2026',
+    );
+
+    if (kDebugMode && salt == 'reducer_default_secure_fallback_2026') {
+      debugPrint('⚠️ [SECURITY] Using DEFAULT premium integrity salt. Set PREMIUM_INTEGRITY_SALT via --dart-define in production.');
+    }
+
+    final key = utf8.encode(salt);
     final bytes = utf8.encode(uid);
     final hmac = Hmac(sha256, key);
     return hmac.convert(bytes).toString();
@@ -130,7 +151,7 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
     }
 
     final String? isProStr = await _secureStorage.read(key: _kSecIsPro);
-    final isPro = isProStr == 'true';
+    bool isPro = isProStr == 'true';
 
     // Verify Integrity Hash to prevent storage editing
     final String? storedHash = await _secureStorage.read(key: 'pro_integrity_v1');
@@ -156,6 +177,51 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
           '[Purchase] Pro-status stale (${hoursSince.toStringAsFixed(1)}h), re-validating...',
         );
         unawaited(fetchOffersAndCheckStatus());
+      }
+    }
+
+    // ── REINSTALL FIX: Firestore fallback when local storage is empty ─────
+    // After app reinstall, SecureStorage is wiped but Firestore retains
+    // premium status. Check Firestore and restore purchases to re-validate.
+    if (!isPro) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
+        final firestoreStatus = doc.data()?['subscriptionStatus'] as String?;
+
+        if (firestoreStatus == 'premium') {
+          debugPrint('[Purchase] 🔄 Firestore says premium but local is empty — attempting restore...');
+          
+          // Try to restore purchases from Play Store to validate
+          try {
+            await _iap.restorePurchases();
+            // If restore triggers _listenToPurchaseUpdated with a valid purchase,
+            // _handleSuccessfulPurchase will call _setProStatusLocally(true).
+            // Give it a moment to process.
+            await Future.delayed(const Duration(seconds: 2));
+            
+            // Re-read local status after restore attempt
+            final String? updatedProStr = await _secureStorage.read(key: _kSecIsPro);
+            isPro = updatedProStr == 'true';
+            
+            if (!isPro) {
+              // Restore didn't find valid purchases — subscription likely expired.
+              // Update Firestore to reflect the truth.
+              debugPrint('[Purchase] ⚠️ Restore found no valid purchases — marking as free in Firestore.');
+              await _ref.read(userServiceProvider).updateFields(user.uid, {
+                'subscriptionStatus': 'free',
+              });
+            } else {
+              debugPrint('[Purchase] ✅ Restore successful — premium status re-validated.');
+            }
+          } catch (restoreError) {
+            debugPrint('[Purchase] ❌ Restore attempt failed: $restoreError');
+          }
+        }
+      } catch (e) {
+        debugPrint('[Purchase] ❌ Firestore fallback check error: $e');
       }
     }
 
@@ -486,9 +552,9 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
       if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
-        successMessage: details.status == PurchaseStatus.restored
-            ? 'Restored Successfully!'
-            : 'Welcome to Premium! 🎉',
+        statusType: details.status == PurchaseStatus.restored
+            ? PurchaseStatusType.restoreSuccess
+            : PurchaseStatusType.purchaseSuccess,
       );
 
       // Show congratulations notification
@@ -496,9 +562,9 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
         debugPrint('[PurchaseNotifier] Successful purchase, triggering notification');
         Future.delayed(const Duration(milliseconds: 500), () {
           NotificationService().showNotification(
-            id: 2,
+            id: 102,
             title: 'Congratulations! 💎',
-            body: 'You are now a Premium member. Enjoy all the Pro features!',
+            body: 'You are now a Premium member. Full access unlocked.',
           );
         });
       }
@@ -526,12 +592,14 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
         return;
       }
 
+      final now = DateTime.now();
+
       final Map<String, dynamic> subData = {
         'subscriptionStatus': 'premium',
         'productId': details.productID,
         'purchaseToken': currentToken,
         'orderId': details.purchaseID,
-        'subscriptionStartDate': FieldValue.serverTimestamp(),
+        'subscriptionStartDate': Timestamp.fromDate(now),
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -543,6 +611,22 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
         subData['priceCurrencyCode'] = selectedPlan.product.currencyCode;
         subData['billingPeriod'] = selectedPlan.isYearly ? 'yearly' : (selectedPlan.isMonthly ? 'monthly' : 'test');
         subData['basePlanId'] = selectedPlan.offer?.basePlanId ?? 'unknown';
+
+        // ── FIX: Calculate and save expiryDate & subscriptionEndDate ────────
+        DateTime expiryDate;
+        if (selectedPlan.isYearly) {
+          expiryDate = DateTime(now.year + 1, now.month, now.day);
+        } else if (selectedPlan.isMonthly) {
+          expiryDate = DateTime(now.year, now.month + 1, now.day);
+        } else {
+          // Test plan: short duration (3 days)
+          expiryDate = now.add(const Duration(days: 3));
+        }
+        subData['expiryDate'] = Timestamp.fromDate(expiryDate);
+        subData['subscriptionEndDate'] = Timestamp.fromDate(expiryDate);
+        subData['autoRenewing'] = true;
+
+        debugPrint('[Purchase] 📅 Expiry date calculated: $expiryDate (${selectedPlan.periodName})');
       }
 
       await _ref.read(userServiceProvider).updateSubscription(user.uid, subData);
@@ -560,3 +644,4 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
     super.dispose();
   }
 }
+

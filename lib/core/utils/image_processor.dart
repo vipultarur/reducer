@@ -76,11 +76,18 @@ class ImageProcessor {
     ImageSettings settings, {
     bool isPremium = false,
     int maxConcurrent = 3,
+    ValueNotifier<bool>? cancellationToken,
   }) async* {
     int completed = 0;
     final total = inputs.length;
 
     for (int i = 0; i < inputs.length; i += maxConcurrent) {
+      // Check for cancellation
+      if (cancellationToken != null && cancellationToken.value == true) {
+        debugPrint('[ImageProcessor] Bulk processing cancelled by user.');
+        break;
+      }
+
       final batch = inputs.skip(i).take(maxConcurrent).toList();
 
       final results = await Future.wait(
@@ -190,7 +197,7 @@ class ImageProcessor {
       // Binary search for quality (12 iterations for high precision)
       for (int i = 0; i < 12; i++) {
         if (low > high) break;
-        int mid = (low + high) ~/ 2;
+        final int mid = (low + high) ~/ 2;
         
         final result = await FlutterImageCompress.compressWithList(
           bytes,
@@ -220,26 +227,35 @@ class ImageProcessor {
       // ── ACCURACY CHECK & DYNAMIC SCALING ─────────────────────────────────────
       final finalStageSize = stageBestSize > 0 ? stageBestSize : (bestResult?.length ?? 0);
       
-      // If we are within 5% of target or have no more options, we stop.
-      if ((finalStageSize - targetBytes).abs() < (targetBytes * 0.05)) {
+      // HIGH ACCURACY: Stop if we are within 0.5% or 1KB of the target
+      final diffBytes = (finalStageSize - targetBytes).abs();
+      if (diffBytes < (targetBytes * 0.005) || diffBytes < 1024) {
         break;
       }
 
       // If we are too SMALL even at quality 100, we INCREASE resolution
-      if (finalStageSize < targetBytes * 0.9 && currentWidth < initialWidth * 4) {
-        final scaleFactor = math.sqrt(targetBytes / finalStageSize).clamp(1.1, 2.0);
+      // Limit upscaling to 2x to prevent OOM on low-end devices
+      if (finalStageSize < targetBytes * 0.98 && currentWidth < initialWidth * 2) {
+        // Safety guard: Don't upscale if projected raw buffer exceeds 100MB
+        final projectedBufferBytes = currentWidth * currentHeight * 4 * 1.5;
+        if (projectedBufferBytes > 100 * 1024 * 1024) {
+          debugPrint('Upscale aborted: Potential memory risk (${(projectedBufferBytes / 1024 / 1024).toStringAsFixed(1)}MB)');
+          break;
+        }
+
+        final scaleFactor = math.sqrt(targetBytes / finalStageSize).clamp(1.05, 1.5);
         currentWidth = (currentWidth * scaleFactor).round();
         currentHeight = (currentHeight * scaleFactor).round();
-        debugPrint('Target size not met. Upscaling resolution to ${currentWidth}x${currentHeight}');
+        debugPrint('Target size not met. Upscaling resolution to ${currentWidth}x$currentHeight');
         continue;
       }
 
       // If we are too LARGE even at quality 5, we DECREASE resolution
-      if (finalStageSize > targetBytes * 1.1) {
-        final scaleFactor = math.sqrt(targetBytes / finalStageSize).clamp(0.5, 0.9);
+      if (finalStageSize > targetBytes * 1.02) {
+        final scaleFactor = math.sqrt(targetBytes / finalStageSize).clamp(0.5, 0.95);
         currentWidth = (currentWidth * scaleFactor).round();
         currentHeight = (currentHeight * scaleFactor).round();
-        debugPrint('Target size exceeded. Downscaling resolution to ${currentWidth}x${currentHeight}');
+        debugPrint('Target size exceeded. Downscaling resolution to ${currentWidth}x$currentHeight');
         continue;
       }
 
@@ -339,3 +355,4 @@ Uint8List _encodeBmpInIsolate(Uint8List bytes) {
   final image = img.decodeImage(bytes);
   return image != null ? Uint8List.fromList(img.encodeBmp(image)) : bytes;
 }
+

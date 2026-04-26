@@ -1,5 +1,6 @@
 import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:reducer/features/auth/presentation/pages/login_screen.dart';
@@ -15,21 +16,25 @@ import 'package:reducer/features/premium/presentation/pages/premium_page.dart';
 import 'package:reducer/features/gallery/presentation/pages/gallery_page.dart';
 import 'package:reducer/features/exif/presentation/pages/exif_eraser_page.dart';
 import 'package:reducer/features/settings/presentation/pages/settings_page.dart';
-import 'package:reducer/features/settings/presentation/pages/privacy_policy_page.dart';
+
+import 'package:reducer/core/services/analytics_service.dart';
 import 'package:reducer/features/gallery/presentation/pages/bulk_history_detail_page.dart';
 import 'package:reducer/features/gallery/data/models/history_item.dart';
+import 'package:reducer/features/localization/presentation/pages/language_selection_page.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = ref.read(routerNotifierProvider);
+  final analytics = ref.read(analyticsServiceProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/splash',
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: kDebugMode,
     refreshListenable: notifier,
     redirect: notifier.redirect,
+    observers: [analytics.observer],
     routes: [
       GoRoute(
         path: '/splash',
@@ -61,21 +66,21 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          // Bulk Branch
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/bulk-editor',
+                builder: (context, state) => const BulkImageScreen(),
+              ),
+            ],
+          ),
           // History Branch
           StatefulShellBranch(
             routes: [
               GoRoute(
                 path: '/gallery',
                 builder: (context, state) => const GalleryScreen(),
-              ),
-            ],
-          ),
-          // Premium Branch
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: '/premium',
-                builder: (context, state) => const PremiumScreen(),
               ),
             ],
           ),
@@ -93,9 +98,9 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // -- OTHER STANDALONE ROUTES --
       GoRoute(
-        path: '/bulk-editor',
+        path: '/premium',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const BulkImageScreen(),
+        builder: (context, state) => const PremiumScreen(),
       ),
       GoRoute(
         path: '/bulk-history-detail',
@@ -118,11 +123,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const SettingsScreen(),
       ),
-      GoRoute(
-        path: '/privacy-policy',
-        parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const PrivacyPolicyScreen(),
-      ),
+
       GoRoute(
         path: '/login',
         parentNavigatorKey: _rootNavigatorKey,
@@ -133,6 +134,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => RegisterScreen(redirectTo: state.uri.queryParameters['redirect']),
       ),
+      GoRoute(
+        path: '/language-selection',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final isFromSettings = state.uri.queryParameters['fromSettings'] == 'true';
+          return LanguageSelectionPage(isFromSettings: isFromSettings);
+        },
+      ),
     ],
   );
 });
+
